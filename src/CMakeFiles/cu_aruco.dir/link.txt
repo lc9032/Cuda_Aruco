@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcu_aruco.a CMakeFiles/cu_aruco.dir/cu_aruco_generated_cu_aruco.cu.o
+/usr/bin/ranlib libcu_aruco.a
