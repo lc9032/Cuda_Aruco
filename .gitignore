@@ -1,0 +1,13 @@
+# Ignore compiled files
+CMakeCache.txt
+cmake_install.cmake
+main
+Makefile
+/CMakeFiles/CMakeCache.txt
+/CMakeFiles/cmake_install.cmake
+/CMakeFiles/libaruco.a
+/CMakeFiles/libcu_aruco.a
+
+# Ignore build directories
+/CMakeFiles/
+/CMakeFiles/CMakeFiles/
