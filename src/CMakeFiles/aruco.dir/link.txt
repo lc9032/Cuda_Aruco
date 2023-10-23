@@ -1,2 +1,0 @@
-/usr/bin/ar qc libaruco.a CMakeFiles/aruco.dir/aruco.cpp.o CMakeFiles/aruco.dir/apriltag_quad_thresh.cpp.o CMakeFiles/aruco.dir/zmaxheap.cpp.o
-/usr/bin/ranlib libaruco.a
