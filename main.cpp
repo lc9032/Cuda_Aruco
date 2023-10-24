@@ -70,9 +70,6 @@ int main() {
         aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
         cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
 
-
-        
-
         // Display the frame in the window
         cv::imshow("Camera Feed", frame);
         cv::waitKey(0);
