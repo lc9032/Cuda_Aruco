@@ -394,7 +394,7 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
 
         //test cuda---------------------------------->>
         cu_aruco::CudaProcessor cudaProcessor;
-        cudaProcessor.cuda_threshold();
+        // cudaProcessor.cuda_threshold();
         //test cuda<<----------------------------------
 
         for(int i = begin; i < end; i++) {
@@ -405,7 +405,22 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
 
             //test cuda---------------------------------->>
-            cudaProcessor.cuda_threshold();
+            int rows = grey->rows;
+            int cols = grey->cols;
+            int step = grey->step;
+            int channels = grey->channels();
+            size_t dataSize = rows * cols * channels * sizeof(unsigned char);
+
+            unsigned char* greyData = grey->data;
+            unsigned char* threshData = new unsigned char[dataSize];
+
+            cudaProcessor.cuda_threshold(greyData, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);
+
+            cv::Mat threshMat(rows, cols, CV_8U);
+            memcpy(threshMat.data, threshData, dataSize);
+
+            cv::imshow("Camera Feed", thresh);
+            cv::waitKey(0);
             //test cuda<<----------------------------------
 
             // detect rectangles

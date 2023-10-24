@@ -42,7 +42,8 @@ int main() {
 
         //--------------------------------------------------
         cv::Mat markerImage;
-        markerImage = cv::imread("pics/123.jpg");
+        // markerImage = cv::imread("pics/123.jpg");
+        markerImage = cv::imread("pics/123_123.png");
         frame = markerImage.clone();
         //--------------------------------------------------
 
@@ -68,6 +69,8 @@ int main() {
         cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_50);
         aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
         cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
+
+
         
 
         // Display the frame in the window

@@ -17,7 +17,24 @@ __global__ void myfirstkernal(void){
 	printf("Hello World from GPU!\n");
 }
 
-__global__ void thresholdkernel (){
+__global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
+                                 int _width, int _height, int _pitch,
+                                 double _param) {
+  int y = blockDim.y * blockIdx.y + threadIdx.y;
+  int x = blockDim.x * blockIdx.x + threadIdx.x;
+
+  if (y < _height && x < _width) {
+#pragma unroll
+    for (int i = 0; i < 5; ++i)
+      _dst[i * _pitch * _height + y * _pitch + x] = 
+	_src[y * _pitch + x] > _dst[i * _pitch * _height + y * _pitch + x] - _param
+				  ? 0
+				  : 255;
+  }
+}
+
+__global__ void thresholdkernel (const unsigned char* _src, unsigned char* _dst, double maxValue,
+								 int method, int type, int blockSize, double delta){
 	printf("thresholdkernel\n");
 }
 
@@ -56,17 +73,18 @@ bool CudaProcessor::InitCUDA()
 	return true;
 }
 
-// void adaptiveThreshold( InputArray _src, OutputArray _dst, double maxValue,
-//                             int method, int type, int blockSize, double delta )
+// void adaptiveThreshold( const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step,
+// 							double maxValue, int method, int type, int blockSize, double delta )
 // {
-//     CV_INSTRUMENT_REGION();
+//     // CV_INSTRUMENT_REGION();
 
-//     Mat src = _src.getMat();
-//     CV_Assert( src.type() == CV_8UC1 );
-//     CV_Assert( blockSize % 2 == 1 && blockSize > 1 );
-//     Size size = src.size();
+//     // Mat src = _src.getMat();
+//     // CV_Assert( src.type() == CV_8UC1 );
+//     // CV_Assert( blockSize % 2 == 1 && blockSize > 1 );
+//     // Size size = src.size();
 
-//     _dst.create( size, src.type() );
+//     // _dst.create( size, src.type() ); //original
+// 	_dst.create( size, CV_8U );
 //     Mat dst = _dst.getMat();
 
 //     if( maxValue < 0 )
@@ -75,8 +93,8 @@ bool CudaProcessor::InitCUDA()
 //         return;
 //     }
 
-//     CALL_HAL(adaptiveThreshold, cv_hal_adaptiveThreshold, src.data, src.step, dst.data, dst.step, src.cols, src.rows,
-//              maxValue, method, type, blockSize, delta);
+//     // CALL_HAL(adaptiveThreshold, cv_hal_adaptiveThreshold, src.data, src.step, dst.data, dst.step, src.cols, src.rows,
+//     //          maxValue, method, type, blockSize, delta);
 
 //     Mat mean;
 
@@ -128,13 +146,25 @@ bool CudaProcessor::InitCUDA()
 //     }
 // }
 
+static int iDivUp(int a, int b) { return (a%b != 0) ? (a/b + 1) : (a/b); }
+
 // Implement the cuda_threshold method
-void CudaProcessor::cuda_threshold() {
+void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step, int winSize, double constant) {
+
+	dim3 blocks(iDivUp(rows, 16), iDivUp(cols, 16));
+	dim3 threads(16, 16);
+
     // printf("cuda_threshold\n");
 
     // myfirstkernal<<<1,1>>>();
 
-	thresholdkernel<<<1,1>>>();
+	printf("winSize = %d, constant = %d \n", winSize, constant);
+
+	// adaptiveThreshold(_src, _dst, rows, cols, step, 255, 0, 1, winSize, constant);
+
+	thresholdkernel<<<1,1>>>(_src, _dst, 255, 0, 1, winSize, constant);
+
+	threshold_kernel<<<blocks, threads>>>(_src, _dst, rows, cols, 1, 1);
 
 
 }

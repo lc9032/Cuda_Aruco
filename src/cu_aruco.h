@@ -9,7 +9,7 @@ public:
 
     bool InitCUDA();
     // Declare the cuda_threshold method
-    void cuda_threshold();
+    void cuda_threshold(const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step, int winSize, double constant);
 };
 
 } // namespace cu_aruco
