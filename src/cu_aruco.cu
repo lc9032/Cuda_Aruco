@@ -165,8 +165,6 @@ void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _ds
 	thresholdkernel<<<1,1>>>(_src, _dst, 255, 0, 1, winSize, constant);
 
 	threshold_kernel<<<blocks, threads>>>(_src, _dst, rows, cols, 1, 1);
-
-
 }
 
 } // namespace cu_aruco
