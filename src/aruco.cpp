@@ -419,7 +419,7 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             cv::Mat threshMat(rows, cols, CV_8U);
             memcpy(threshMat.data, threshData, dataSize);
 
-            cv::imshow("Camera Feed", thresh);
+            cv::imshow("Camera Feed", threshMat);
             cv::waitKey(0);
             //test cuda<<----------------------------------
 

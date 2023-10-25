@@ -18,19 +18,35 @@ __global__ void myfirstkernal(void){
 }
 
 __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
-                                 int _width, int _height, int _pitch,
+                                 int rows, int cols, int _pitch,
                                  double _param) {
-  int y = blockDim.y * blockIdx.y + threadIdx.y;
-  int x = blockDim.x * blockIdx.x + threadIdx.x;
+	// printf("threshold_kernel!!!!!!\n");
+	// printf("rows = %d, cols = %d \n", rows, cols);
+//   int y = blockDim.y * blockIdx.y + threadIdx.y;
+//   int x = blockDim.x * blockIdx.x + threadIdx.x;
 
-  if (y < _height && x < _width) {
-#pragma unroll
-    for (int i = 0; i < 5; ++i)
-      _dst[i * _pitch * _height + y * _pitch + x] = 
-	_src[y * _pitch + x] > _dst[i * _pitch * _height + y * _pitch + x] - _param
-				  ? 0
-				  : 255;
-  }
+//   if (y < rows && x < cols) {
+// #pragma unroll
+//     for (int i = 0; i < 5; ++i)
+//       _dst[i * _pitch * rows + y * _pitch + x] = 
+// 	_src[y * _pitch + x] > _dst[i * _pitch * rows + y * _pitch + x] - _param
+// 				  ? 0
+// 				  : 255;
+//   }
+
+
+  	// int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // if (tid < rows * cols) {
+    //     // Copy data from _src to _dst
+    //     _dst[tid] = _src[tid] > _param ? 255 : 0;
+    // }
+
+	for (int i = 0; i < rows * cols; i++){
+		// _dst[i] = _src[i];
+		_dst[i] = _src[i] > _param ? 255 : 0;
+	}
+
 }
 
 __global__ void thresholdkernel (const unsigned char* _src, unsigned char* _dst, double maxValue,
@@ -158,13 +174,27 @@ void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _ds
 
     // myfirstkernal<<<1,1>>>();
 
-	printf("winSize = %d, constant = %d \n", winSize, constant);
+	unsigned char* d_src;  // Device memory for _src
+    unsigned char* d_dst;  // Device memory for _dst
+
+	size_t dataSize = rows * cols * sizeof(unsigned char);
+
+	cudaMalloc((void**)&d_src, dataSize);
+    cudaMalloc((void**)&d_dst, dataSize);
+
+	cudaMemcpy(d_src, _src, dataSize, cudaMemcpyHostToDevice);
+
 
 	// adaptiveThreshold(_src, _dst, rows, cols, step, 255, 0, 1, winSize, constant);
 
 	thresholdkernel<<<1,1>>>(_src, _dst, 255, 0, 1, winSize, constant);
 
-	threshold_kernel<<<blocks, threads>>>(_src, _dst, rows, cols, 1, 1);
+	// threshold_kernel<<<blocks, threads>>>(d_src, d_dst, rows, cols, step, 1);
+	threshold_kernel<<<1, 1>>>(d_src, d_dst, rows, cols, step, 1);
+
+
+	cudaMemcpy(_dst, d_dst, dataSize, cudaMemcpyDeviceToHost);
+
 }
 
 } // namespace cu_aruco
