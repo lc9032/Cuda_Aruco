@@ -4,13 +4,6 @@
 #include <iostream>
 #include <vector>
 
-// #include <opencv2/opencv.hpp>
-// #include <opencv2/aruco.hpp>
-// #include <opencv2/core.hpp>
-// #include <opencv2/imgproc.hpp>
-// #include "apriltag_quad_thresh.hpp"
-// #include "zarray.hpp"
-
 namespace cu_aruco {
 
 __global__ void myfirstkernal(void){
@@ -21,7 +14,6 @@ __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
                                  int rows, int cols, int _pitch,
                                  double _param) {
 	// printf("threshold_kernel!!!!!!\n");
-	// printf("rows = %d, cols = %d \n", rows, cols);
 //   int y = blockDim.y * blockIdx.y + threadIdx.y;
 //   int x = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -33,25 +25,40 @@ __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
 // 				  ? 0
 // 				  : 255;
 //   }
+//============================================================================================================
+	int blockSize = 10;
+	double c = 10;
 
+	for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            int sum = 0;
+            int count = 0;
 
-  	// int tid = blockIdx.x * blockDim.x + threadIdx.x;
+            // Calculate local mean within the specified block size
+            for (int x = -blockSize / 2; x <= blockSize / 2; x++) {
+                for (int y = -blockSize / 2; y <= blockSize / 2; y++) {
+                    int row = i + x;
+                    int col = j + y;
 
-    // if (tid < rows * cols) {
-    //     // Copy data from _src to _dst
-    //     _dst[tid] = _src[tid] > _param ? 255 : 0;
-    // }
+                    // Ensure the pixel is within bounds
+                    if (row >= 0 && row < rows && col >= 0 && col < cols) {
+                        sum += _src[row * cols + col];
+                        count++;
+                    }
+                }
+            }
 
-	for (int i = 0; i < rows * cols; i++){
-		// _dst[i] = _src[i];
-		_dst[i] = _src[i] > _param ? 255 : 0;
-	}
+            int localMean = sum / count;
+            int threshold = localMean - c;
 
-}
-
-__global__ void thresholdkernel (const unsigned char* _src, unsigned char* _dst, double maxValue,
-								 int method, int type, int blockSize, double delta){
-	printf("thresholdkernel\n");
+            // Apply thresholding
+            if (_src[i * cols + j] >= threshold) {
+                _dst[i * cols + j] = 0; // Foreground
+            } else {
+                _dst[i * cols + j] = 255;   // Background
+            }
+        }
+    }
 }
 
 // Constructor implementation
@@ -184,14 +191,8 @@ void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _ds
 
 	cudaMemcpy(d_src, _src, dataSize, cudaMemcpyHostToDevice);
 
-
-	// adaptiveThreshold(_src, _dst, rows, cols, step, 255, 0, 1, winSize, constant);
-
-	thresholdkernel<<<1,1>>>(_src, _dst, 255, 0, 1, winSize, constant);
-
 	// threshold_kernel<<<blocks, threads>>>(d_src, d_dst, rows, cols, step, 1);
 	threshold_kernel<<<1, 1>>>(d_src, d_dst, rows, cols, step, 1);
-
 
 	cudaMemcpy(_dst, d_dst, dataSize, cudaMemcpyDeviceToHost);
 

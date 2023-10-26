@@ -67,7 +67,18 @@ int main() {
         std::vector<std::vector<cv::Point2f>> markerCorners;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
         cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_50);
+
+        //---
+        clock_t time_used;
+	    clock_t start = clock();
+
         aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
+        // cv::aruco::detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
+
+        time_used = clock() - start;
+        printf("time used: %d\n", (int)time_used);
+        //---
+
         cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
 
         // Display the frame in the window

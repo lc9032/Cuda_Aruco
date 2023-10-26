@@ -402,7 +402,7 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
                 params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
             // threshold
             Mat thresh;
-            _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
+            // _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
 
             //test cuda---------------------------------->>
             int rows = grey->rows;
@@ -419,8 +419,10 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             cv::Mat threshMat(rows, cols, CV_8U);
             memcpy(threshMat.data, threshData, dataSize);
 
-            cv::imshow("Camera Feed", threshMat);
-            cv::waitKey(0);
+            // cv::imshow("Camera Feed", threshMat);
+            // cv::waitKey(0);
+
+            threshMat.copyTo(thresh);
             //test cuda<<----------------------------------
 
             // detect rectangles
