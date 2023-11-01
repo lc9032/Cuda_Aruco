@@ -11,23 +11,50 @@ __global__ void myfirstkernal(void){
 }
 
 __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
-                                 int rows, int cols, int _pitch,
-                                 double _param) {
-	// printf("threshold_kernel!!!!!!\n");
-//   int y = blockDim.y * blockIdx.y + threadIdx.y;
-//   int x = blockDim.x * blockIdx.x + threadIdx.x;
+                                 int rows, int cols, int blockSize,
+                                 double c) {
 
-//   if (y < rows && x < cols) {
-// #pragma unroll
-//     for (int i = 0; i < 5; ++i)
-//       _dst[i * _pitch * rows + y * _pitch + x] = 
-// 	_src[y * _pitch + x] > _dst[i * _pitch * rows + y * _pitch + x] - _param
-// 				  ? 0
-// 				  : 255;
-//   }
-//============================================================================================================
-	int blockSize = 10;
-	double c = 10;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i < rows && j < cols) {
+	// for (int i = 0; i < rows; i++) {
+    //     for (int j = 0; j < cols; j++) {
+            int sum = 0;
+            int count = 0;
+
+            // Calculate local mean within the specified block size
+            for (int x = -blockSize / 2; x <= blockSize / 2; x++) {
+                for (int y = -blockSize / 2; y <= blockSize / 2; y++) {
+                    int row = i + x;
+                    int col = j + y;
+
+                    // Ensure the pixel is within bounds
+                    if (row >= 0 && row < rows && col >= 0 && col < cols) {
+                        sum += _src[row * cols + col];
+                        count++;
+                    }
+                }
+            }
+
+            int localMean = sum / count;
+            int threshold = localMean - c;
+
+            // Apply thresholding
+            if (_src[i * cols + j] >= threshold) {
+                _dst[i * cols + j] = 0; // Foreground
+            } else {
+                _dst[i * cols + j] = 255;   // Background
+            }
+    //     }
+    // }
+    }
+}
+
+void threshold_kernel_cpu(const unsigned char* _src, unsigned char* _dst,
+                                 int rows, int cols, int blockSize,
+                                 double c) {
+	// printf("threshold_kernel_cpu!!!!!!\n");
 
 	for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
@@ -60,6 +87,7 @@ __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
         }
     }
 }
+
 
 // Constructor implementation
 CudaProcessor::CudaProcessor() {
@@ -107,7 +135,7 @@ bool CudaProcessor::InitCUDA()
 //     // Size size = src.size();
 
 //     // _dst.create( size, src.type() ); //original
-// 	_dst.create( size, CV_8U );
+// 	   _dst.create( size, CV_8U );
 //     Mat dst = _dst.getMat();
 
 //     if( maxValue < 0 )
@@ -124,33 +152,16 @@ bool CudaProcessor::InitCUDA()
 //     if( src.data != dst.data )
 //         mean = dst;
 
-//     if (method == ADAPTIVE_THRESH_MEAN_C)
-//         boxFilter( src, mean, src.type(), Size(blockSize, blockSize),
-//                    Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED );
-//     else if (method == ADAPTIVE_THRESH_GAUSSIAN_C)
-//     {
-//         Mat srcfloat,meanfloat;
-//         src.convertTo(srcfloat,CV_32F);
-//         meanfloat=srcfloat;
-//         GaussianBlur(srcfloat, meanfloat, Size(blockSize, blockSize), 0, 0, BORDER_REPLICATE|BORDER_ISOLATED);
-//         meanfloat.convertTo(mean, src.type());
-//     }
-//     else
-//         CV_Error( CV_StsBadFlag, "Unknown/unsupported adaptive threshold method" );
+//     boxFilter( src, mean, src.type(), Size(blockSize, blockSize),
+//                Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED );// if (method == ADAPTIVE_THRESH_MEAN_C)
 
 //     int i, j;
 //     uchar imaxval = saturate_cast<uchar>(maxValue);
 //     int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
 //     uchar tab[768];
 
-//     if( type == CV_THRESH_BINARY )
-//         for( i = 0; i < 768; i++ )
-//             tab[i] = (uchar)(i - 255 > -idelta ? imaxval : 0);
-//     else if( type == CV_THRESH_BINARY_INV )
-//         for( i = 0; i < 768; i++ )
-//             tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0);
-//     else
-//         CV_Error( CV_StsBadFlag, "Unknown/unsupported threshold type" );
+//     for( i = 0; i < 768; i++ )
+//          tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0); // if( type == CV_THRESH_BINARY_INV )
 
 //     if( src.isContinuous() && mean.isContinuous() && dst.isContinuous() )
 //     {
@@ -177,10 +188,18 @@ void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _ds
 	dim3 blocks(iDivUp(rows, 16), iDivUp(cols, 16));
 	dim3 threads(16, 16);
 
+    
+    // int threads = 128;  // You can adjust this based on your GPU's capability
+    // int blocks = (rows * cols + threads - 1); // numThreadsPerBlock;
+    
+
     // printf("cuda_threshold\n");
+
+    // printf("winSize = %d\n", winSize);
 
     // myfirstkernal<<<1,1>>>();
 
+	// //=====================================================================================
 	unsigned char* d_src;  // Device memory for _src
     unsigned char* d_dst;  // Device memory for _dst
 
@@ -191,10 +210,18 @@ void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _ds
 
 	cudaMemcpy(d_src, _src, dataSize, cudaMemcpyHostToDevice);
 
-	// threshold_kernel<<<blocks, threads>>>(d_src, d_dst, rows, cols, step, 1);
-	threshold_kernel<<<1, 1>>>(d_src, d_dst, rows, cols, step, 1);
+	threshold_kernel<<<blocks, threads>>>(d_src, d_dst, rows, cols, winSize, constant);
+	// threshold_kernel<<<1, 1>>>(d_src, d_dst, rows, cols, winSize, constant);
 
 	cudaMemcpy(_dst, d_dst, dataSize, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_src);
+    cudaFree(d_dst);
+	//=====================================================================================
+
+	
+
+	// threshold_kernel_cpu(_src, _dst, rows, cols, winSize, constant);
 
 }
 
