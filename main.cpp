@@ -76,7 +76,8 @@ int main() {
         // cv::aruco::detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
 
         time_used = clock() - start;
-        printf("time used: %d\n", (int)time_used);
+        double time_in_ms = static_cast<double>(time_used) / CLOCKS_PER_SEC * 1000.0;
+        printf("time used: %d\n", (int)time_in_ms);
         //---
 
         cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);

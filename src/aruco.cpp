@@ -120,6 +120,53 @@ void Aruco::initCuda() {
 }
 
 //====================================================================================================================================
+//thresh.cpp
+static void adaptiveThreshold_aruco( InputArray _src, OutputArray _dst, double maxValue,
+                            int method, int type, int blockSize, double delta )
+{
+    Mat src = _src.getMat();
+
+    Size size = src.size();
+
+    _dst.create( size, src.type() );
+    Mat dst = _dst.getMat();
+
+
+    Mat mean;
+
+    // if( src.data != dst.data ){
+    //     mean = dst;
+    // }
+
+    boxFilter( src, mean, src.type(), Size(blockSize, blockSize), Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED ); //if (method == ADAPTIVE_THRESH_MEAN_C)
+
+    int i, j;
+    uchar imaxval = saturate_cast<uchar>(maxValue);
+    int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
+    uchar tab[768];
+
+    for( i = 0; i < 768; i++ )
+        tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0); //if( type == CV_THRESH_BINARY_INV )
+
+
+    // if( src.isContinuous() && mean.isContinuous() && dst.isContinuous() )
+    // {
+    //     size.width *= size.height;
+    //     size.height = 1;
+    // }
+
+    for( i = 0; i < size.height; i++ )
+    {
+        const uchar* sdata = src.ptr(i);
+        const uchar* mdata = mean.ptr(i);
+        uchar* ddata = dst.ptr(i);
+
+        for( j = 0; j < size.width; j++ )
+            ddata[j] = tab[sdata[j] - mdata[j] + 255];
+    }
+}
+
+//====================================================================================================================================
 /**
   * @brief Convert input image to gray if it is a 3-channels image
   */
@@ -133,7 +180,6 @@ static void _convertToGrey(InputArray _in, OutputArray _out) {
         _in.copyTo(_out);
 }
 
-
 /**
   * @brief Threshold input image using adaptive thresholding
   */
@@ -141,7 +187,8 @@ static void _threshold(InputArray _in, OutputArray _out, int winSize, double con
 
     CV_Assert(winSize >= 3);
     if(winSize % 2 == 0) winSize++; // win size must be odd
-    adaptiveThreshold(_in, _out, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, winSize, constant);
+    // adaptiveThreshold(_in, _out, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, winSize, constant);
+    adaptiveThreshold_aruco(_in, _out, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY_INV, winSize, constant);
 }
 
 
@@ -423,10 +470,12 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             // thresh.copyTo(threshMat);
             threshMat.copyTo(thresh);
 
-            // cv::imshow("Camera Feed", threshMat);
+            // // cv::imshow("Camera Feed", threshMat);
+            // // cv::waitKey(0);
+
+            // cv::imshow("Camera Feed", thresh);
             // cv::waitKey(0);
 
-            
             //test cuda<<----------------------------------
 
             // detect rectangles
