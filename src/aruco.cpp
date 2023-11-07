@@ -120,10 +120,14 @@ void Aruco::initCuda() {
 }
 
 //====================================================================================================================================
+
 //thresh.cpp
 static void adaptiveThreshold_aruco( InputArray _src, OutputArray _dst, double maxValue,
                             int method, int type, int blockSize, double delta )
 {
+
+    printf("adaptiveThreshold_aruco\n");
+
     Mat src = _src.getMat();
 
     Size size = src.size();
@@ -134,9 +138,9 @@ static void adaptiveThreshold_aruco( InputArray _src, OutputArray _dst, double m
 
     Mat mean;
 
-    // if( src.data != dst.data ){
-    //     mean = dst;
-    // }
+    if( src.data != dst.data ){
+        mean = dst;
+    }
 
     boxFilter( src, mean, src.type(), Size(blockSize, blockSize), Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED ); //if (method == ADAPTIVE_THRESH_MEAN_C)
 
@@ -145,7 +149,7 @@ static void adaptiveThreshold_aruco( InputArray _src, OutputArray _dst, double m
     int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
     uchar tab[768];
 
-    for( i = 0; i < 768; i++ )
+    for( i = 0; i < 768; i++ )    // cap.release();
         tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0); //if( type == CV_THRESH_BINARY_INV )
 
 
@@ -445,11 +449,11 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
         //test cuda<<----------------------------------
 
         for(int i = begin; i < end; i++) {
-            int currScale =
-                params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
+            int currScale = params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
+
             // threshold
             Mat thresh;
-            // _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
+            _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
 
             //test cuda---------------------------------->>
             int rows = grey->rows;
@@ -461,7 +465,13 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             unsigned char* greyData = grey->data;
             unsigned char* threshData = new unsigned char[dataSize];
 
-            cudaProcessor.cuda_threshold(greyData, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);
+            //##test move out boxFilter
+            unsigned char* mean = thresh.data;
+            // boxFilter( src, mean, src.type(), Size(blockSize, blockSize), Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED );
+            cudaProcessor.cuda_threshold_preFilter(greyData, mean, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);
+            //##test move out boxFilter
+
+            // cudaProcessor.cuda_threshold(greyData, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);
 
             cv::Mat threshMat(rows, cols, CV_8UC1);
             
@@ -470,12 +480,8 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             // thresh.copyTo(threshMat);
             threshMat.copyTo(thresh);
 
-            // // cv::imshow("Camera Feed", threshMat);
-            // // cv::waitKey(0);
-
             // cv::imshow("Camera Feed", thresh);
             // cv::waitKey(0);
-
             //test cuda<<----------------------------------
 
             // detect rectangles

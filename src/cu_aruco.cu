@@ -6,8 +6,39 @@
 
 namespace cu_aruco {
 
-__global__ void myfirstkernal(void){
-	printf("Hello World from GPU!\n");
+// Constructor implementation
+CudaProcessor::CudaProcessor() {
+    // Constructor implementation
+}
+
+bool CudaProcessor::InitCUDA()
+{
+	int count;
+
+	cudaGetDeviceCount(&count);
+	if(count == 0) {
+		fprintf(stderr, "There is no device.\n");
+		return false;
+	}
+
+	int i;
+	for(i = 0; i < count; i++) {
+		cudaDeviceProp prop;
+		if(cudaGetDeviceProperties(&prop, i) == cudaSuccess) {
+			if(prop.major >= 1) {
+				break;
+			}
+		}
+	}
+
+	if(i == count) {
+		fprintf(stderr, "There is no device supporting CUDA 1.x.\n");
+		return false;
+	}
+
+	cudaSetDevice(i);
+
+	return true;
 }
 
 __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
@@ -51,35 +82,35 @@ __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
     }
 }
 
-void threshold_kernel_cpu(const unsigned char* _src, unsigned char* _dst,
+void threshold_kernel_cpu(const unsigned char* _src, unsigned char* _mean, unsigned char* _dst,
                                  int rows, int cols, int blockSize,
                                  double c) {
 	// printf("threshold_kernel_cpu!!!!!!\n");
 
 	for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            int sum = 0;
-            int count = 0;
+            // int sum = 0;
+            // int count = 0;
 
             // Calculate local mean within the specified block size
-            for (int x = -blockSize / 2; x <= blockSize / 2; x++) {
-                for (int y = -blockSize / 2; y <= blockSize / 2; y++) {
-                    int row = i + x;
-                    int col = j + y;
+            // for (int x = -blockSize / 2; x <= blockSize / 2; x++) {
+            //     for (int y = -blockSize / 2; y <= blockSize / 2; y++) {
+            //         int row = i + x;
+            //         int col = j + y;
 
-                    // Ensure the pixel is within bounds
-                    if (row >= 0 && row < rows && col >= 0 && col < cols) {
-                        sum += _src[row * cols + col];
-                        count++;
-                    }
-                }
-            }
+            //         // Ensure the pixel is within bounds
+            //         if (row >= 0 && row < rows && col >= 0 && col < cols) {
+            //             sum += _src[row * cols + col];
+            //             count++;
+            //         }
+            //     }
+            // }
 
-            int localMean = sum / count;
-            int threshold = localMean - c;
+            // int localMean = sum / count;
+            // int threshold = localMean - c;
 
             // Apply thresholding
-            if (_src[i * cols + j] >= threshold) {
+            if (_src[i * cols + j] >= _mean[i * cols + j]) {
                 _dst[i * cols + j] = 0; // Foreground
             } else {
                 _dst[i * cols + j] = 255;   // Background
@@ -88,98 +119,6 @@ void threshold_kernel_cpu(const unsigned char* _src, unsigned char* _dst,
     }
 }
 
-
-// Constructor implementation
-CudaProcessor::CudaProcessor() {
-    // Constructor implementation
-}
-
-bool CudaProcessor::InitCUDA()
-{
-	int count;
-
-	cudaGetDeviceCount(&count);
-	if(count == 0) {
-		fprintf(stderr, "There is no device.\n");
-		return false;
-	}
-
-	int i;
-	for(i = 0; i < count; i++) {
-		cudaDeviceProp prop;
-		if(cudaGetDeviceProperties(&prop, i) == cudaSuccess) {
-			if(prop.major >= 1) {
-				break;
-			}
-		}
-	}
-
-	if(i == count) {
-		fprintf(stderr, "There is no device supporting CUDA 1.x.\n");
-		return false;
-	}
-
-	cudaSetDevice(i);
-
-	return true;
-}
-
-// void adaptiveThreshold( const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step,
-// 							double maxValue, int method, int type, int blockSize, double delta )
-// {
-//     // CV_INSTRUMENT_REGION();
-
-//     // Mat src = _src.getMat();
-//     // CV_Assert( src.type() == CV_8UC1 );
-//     // CV_Assert( blockSize % 2 == 1 && blockSize > 1 );
-//     // Size size = src.size();
-
-//     // _dst.create( size, src.type() ); //original
-// 	   _dst.create( size, CV_8U );
-//     Mat dst = _dst.getMat();
-
-//     if( maxValue < 0 )
-//     {
-//         dst = Scalar(0);
-//         return;
-//     }
-
-//     // CALL_HAL(adaptiveThreshold, cv_hal_adaptiveThreshold, src.data, src.step, dst.data, dst.step, src.cols, src.rows,
-//     //          maxValue, method, type, blockSize, delta);
-
-//     Mat mean;
-
-//     if( src.data != dst.data )
-//         mean = dst;
-
-//     boxFilter( src, mean, src.type(), Size(blockSize, blockSize),
-//                Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED );// if (method == ADAPTIVE_THRESH_MEAN_C)
-
-//     int i, j;
-//     uchar imaxval = saturate_cast<uchar>(maxValue);
-//     int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
-//     uchar tab[768];
-
-//     for( i = 0; i < 768; i++ )
-//          tab[i] = (uchar)(i - 255 <= -idelta ? imaxval : 0); // if( type == CV_THRESH_BINARY_INV )
-
-//     if( src.isContinuous() && mean.isContinuous() && dst.isContinuous() )
-//     {
-//         size.width *= size.height;
-//         size.height = 1;
-//     }
-
-//     for( i = 0; i < size.height; i++ )
-//     {
-//         const uchar* sdata = src.ptr(i);
-//         const uchar* mdata = mean.ptr(i);
-//         uchar* ddata = dst.ptr(i);
-
-//         for( j = 0; j < size.width; j++ )
-//             ddata[j] = tab[sdata[j] - mdata[j] + 255];
-//     }
-// }
-
 static int iDivUp(int a, int b) { return (a%b != 0) ? (a/b + 1) : (a/b); }
 
 // Implement the cuda_threshold method
@@ -187,17 +126,12 @@ void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _ds
 
 	dim3 blocks(iDivUp(rows, 16), iDivUp(cols, 16));
 	dim3 threads(16, 16);
-
     
     // int threads = 128;  // You can adjust this based on your GPU's capability
     // int blocks = (rows * cols + threads - 1); // numThreadsPerBlock;
-    
 
     // printf("cuda_threshold\n");
 
-    // printf("winSize = %d\n", winSize);
-
-    // myfirstkernal<<<1,1>>>();
 
 	// //=====================================================================================
 	unsigned char* d_src;  // Device memory for _src
@@ -218,11 +152,10 @@ void CudaProcessor::cuda_threshold(const unsigned char* _src, unsigned char* _ds
     cudaFree(d_src);
     cudaFree(d_dst);
 	//=====================================================================================
+}
 
-	
-
-	// threshold_kernel_cpu(_src, _dst, rows, cols, winSize, constant);
-
+void CudaProcessor::cuda_threshold_preFilter(const unsigned char* _src, unsigned char* _mean, unsigned char* _dst, int rows, int cols, int step, int winSize, double constant) {
+    threshold_kernel_cpu(_src, _mean, _dst, rows, cols, winSize, constant);
 }
 
 } // namespace cu_aruco

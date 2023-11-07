@@ -14,12 +14,12 @@ int main() {
     aruco.initCuda();
 
 
-    cv::VideoCapture cap(0);
+    // cv::VideoCapture cap(0);
 
-    if (!cap.isOpened()) {
-        std::cerr << "Error: Could not open camera." << std::endl;
-        return -1;
-    }
+    // if (!cap.isOpened()) {
+    //     std::cerr << "Error: Could not open camera." << std::endl;
+    //     return -1;
+    // }
 
     // cap.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
     // cap.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
@@ -30,7 +30,7 @@ int main() {
         cv::Mat frame;
 
         // Capture a frame from the camera
-        cap >> frame;
+        // cap >> frame;
 
         // Check if the frame was captured successfully
         // if (frame.empty()) {
@@ -94,7 +94,7 @@ int main() {
 
     
 
-    cap.release();
+    // cap.release();
     cv::destroyAllWindows();
 
     return 0;
