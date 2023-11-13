@@ -6,6 +6,8 @@
 #include <opencv2/calib3d.hpp>
 #include <vector>
 
+#define CUDA_IMPLE 1 //0:OPENCV : 1:CUDA
+#define SHOW_DEBUG_WINDOW 0 //0:OFF ; 1:ON
 
 namespace aruco {
 

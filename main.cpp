@@ -3,9 +3,10 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio/videoio.hpp>
-// #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/aruco.hpp>
+
+#define CAPTURE_FRAME 0
 
 int main() {
     aruco::Aruco aruco;  // Create an instance of the Aruco class
@@ -13,33 +14,36 @@ int main() {
     // Call the detect function
     aruco.initCuda();
 
+#if CAPTURE_FRAME
+    cv::VideoCapture cap(0);
 
-    // cv::VideoCapture cap(0);
-
-    // if (!cap.isOpened()) {
-    //     std::cerr << "Error: Could not open camera." << std::endl;
-    //     return -1;
-    // }
+    if (!cap.isOpened()) {
+        std::cerr << "Error: Could not open camera." << std::endl;
+        return -1;
+    }
 
     // cap.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
     // cap.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+
+#endif
 
     cv::namedWindow("Camera Feed", cv::WINDOW_NORMAL);
 
     // while (true) {
         cv::Mat frame;
 
+#if CAPTURE_FRAME
         // Capture a frame from the camera
-        // cap >> frame;
+        cap >> frame;
 
         // Check if the frame was captured successfully
-        // if (frame.empty()) {
-        //     std::cerr << "Error: Could not capture frame." << std::endl;
-        //     break;
-        // }
+        if (frame.empty()) {
+            std::cerr << "Error: Could not capture frame." << std::endl;
+            break;
+        }
 
         cv::flip(frame, frame, 1);
-
+#endif
         //--------------------------------------------------
         cv::Mat markerImage;
         // markerImage = cv::imread("pics/123.jpg");
@@ -92,9 +96,10 @@ int main() {
         // }
     // }
 
-    
+#if CAPTURE_FRAME
+    cap.release();
+#endif
 
-    // cap.release();
     cv::destroyAllWindows();
 
     return 0;

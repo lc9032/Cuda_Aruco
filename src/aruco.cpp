@@ -11,7 +11,6 @@
 #include "apriltag_quad_thresh.hpp"
 #include "zarray.hpp"
 
-
 //===================================================================================================================================
 /**
   *
@@ -115,8 +114,6 @@ void Aruco::initCuda() {
     if(cudaProcessor.InitCUDA()){
         printf("init Cuda\n");
     }
-    // cudaProcessor.cuda_threshold();
-
 }
 
 //====================================================================================================================================
@@ -425,7 +422,6 @@ static void _filterTooCloseCandidates(const vector< vector< Point2f > > &candida
     contoursSetOut.push_back(smallerContours);
 }
 
-
 /**
   * ParallelLoopBody class for the parallelization of the basic candidate detections using
   * different threhold window sizes. Called from function _detectInitialCandidates()
@@ -443,46 +439,52 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
         const int begin = range.start;
         const int end = range.end;
 
-        //test cuda---------------------------------->>
+#if CUDA_IMPLE == 1
         cu_aruco::CudaProcessor cudaProcessor;
-        // cudaProcessor.cuda_threshold();
-        //test cuda<<----------------------------------
 
-        for(int i = begin; i < end; i++) {
+        int rows = grey->rows;
+        int cols = grey->cols;
+        int step = grey->step;
+        int channels = grey->channels();
+        size_t dataSize = rows * cols * channels * sizeof(unsigned char);
+        unsigned char* greyData = grey->data;
+        unsigned char* threshData = new unsigned char[dataSize];
+
+        unsigned char* d_src;  // Device memory for _src
+        unsigned char* d_dst;  // Device memory for _dst
+
+        cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize);
+
+        cudaProcessor.update_image_to_VRAM(greyData, threshData, d_src, d_dst, dataSize);
+
+#endif
+
+        for(int i = begin; i < end; i++) { 
+            
             int currScale = params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
 
             // threshold
             Mat thresh;
+
+#if CUDA_IMPLE == 0
             _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
+#else
 
-            //test cuda---------------------------------->>
-            int rows = grey->rows;
-            int cols = grey->cols;
-            int step = grey->step;
-            int channels = grey->channels();
-            size_t dataSize = rows * cols * channels * sizeof(unsigned char);
+            cudaProcessor.cuda_threshold(d_src, d_dst, rows, cols, step, currScale, params->adaptiveThreshConstant);
 
-            unsigned char* greyData = grey->data;
-            unsigned char* threshData = new unsigned char[dataSize];
-
-            //##test move out boxFilter
-            unsigned char* mean = thresh.data;
-            // boxFilter( src, mean, src.type(), Size(blockSize, blockSize), Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED );
-            cudaProcessor.cuda_threshold_preFilter(greyData, mean, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);
-            //##test move out boxFilter
-
-            // cudaProcessor.cuda_threshold(greyData, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);
+            cudaProcessor.download_image_from_VRAM(threshData, d_dst, dataSize);
 
             cv::Mat threshMat(rows, cols, CV_8UC1);
             
             memcpy(threshMat.data, threshData, dataSize);
 
-            // thresh.copyTo(threshMat);
             threshMat.copyTo(thresh);
+#endif //CUDA_IMPLE
 
-            // cv::imshow("Camera Feed", thresh);
-            // cv::waitKey(0);
-            //test cuda<<----------------------------------
+#if SHOW_DEBUG_WINDOW
+            cv::imshow("Camera Feed", thresh);
+            cv::waitKey(0);
+#endif //SHOW_DEBUG_WINDOW
 
             // detect rectangles
             _findMarkerContours(thresh, (*candidatesArrays)[i], (*contoursArrays)[i],
@@ -490,6 +492,9 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
                                 params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
                                 params->minDistanceToBorder);
         }
+#if CUDA_IMPLE == 1
+    cudaProcessor.free_up_VRAM(d_src, d_dst);
+#endif
     }
 
     private:
