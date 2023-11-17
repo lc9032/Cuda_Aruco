@@ -8,6 +8,7 @@
 
 #define CUDA_IMPLE 1 //0:OPENCV : 1:CUDA
 #define SHOW_DEBUG_WINDOW 0 //0:OFF ; 1:ON
+#define CPU_GPU_SWITCH 1 //0: CPU ; 1: GPU
 
 namespace aruco {
 

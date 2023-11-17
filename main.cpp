@@ -51,22 +51,6 @@ int main() {
         frame = markerImage.clone();
         //--------------------------------------------------
 
-        // std::vector<int> markerIds;
-        // std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
-        // cv::aruco::DetectorParameters detectorParams = cv::aruco::DetectorParameters();
-        // cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_50);
-        // cv::aruco::ArucoDetector detector(dictionary, detectorParams);
-        // detector.detectMarkers(frame, markerCorners, markerIds, rejectedCandidates);
-        // cv::Mat outputImage = frame.clone();
-        // cv::aruco::drawDetectedMarkers(outputImage, markerCorners, markerIds);
-
-        // std::vector<int> markerIds;
-        // std::vector<std::vector<cv::Point2f>> markerCorners;
-        // cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
-        // cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_50);
-        // cv::aruco::detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
-        // cv::aruco::drawDetectedMarkers(frame, markerCorners, markerIds);
-
         std::vector<int> markerIds;
         std::vector<std::vector<cv::Point2f>> markerCorners;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();

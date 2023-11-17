@@ -1,7 +1,7 @@
 #ifndef _CU_ARUCO_H_
 #define _CU_ARUCO_H_
 
-#define CPU_GPU_SWITCH 1 //0: CPU ; 1: GPU
+#include "aruco.h"
 
 namespace cu_aruco {
 

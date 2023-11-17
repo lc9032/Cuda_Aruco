@@ -141,6 +141,8 @@ static void adaptiveThreshold_aruco( InputArray _src, OutputArray _dst, double m
 
     boxFilter( src, mean, src.type(), Size(blockSize, blockSize), Point(-1,-1), true, BORDER_REPLICATE|BORDER_ISOLATED ); //if (method == ADAPTIVE_THRESH_MEAN_C)
 
+    //  printf("maxValue = %f\n", maxValue);
+
     int i, j;
     uchar imaxval = saturate_cast<uchar>(maxValue);
     int idelta = type == THRESH_BINARY ? cvCeil(delta) : cvFloor(delta);
@@ -155,6 +157,9 @@ static void adaptiveThreshold_aruco( InputArray _src, OutputArray _dst, double m
     //     size.width *= size.height;
     //     size.height = 1;
     // }
+
+    //  printf("size.width = %d\n", size.width);
+    //  printf("size.height = %d\n", size.height);
 
     for( i = 0; i < size.height; i++ )
     {
@@ -450,14 +455,13 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
         unsigned char* greyData = grey->data;
         unsigned char* threshData = new unsigned char[dataSize];
 
+#if CPU_GPU_SWITCH == 1
         unsigned char* d_src;  // Device memory for _src
         unsigned char* d_dst;  // Device memory for _dst
-
         cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize);
-
         cudaProcessor.update_image_to_VRAM(greyData, threshData, d_src, d_dst, dataSize);
-
-#endif
+#endif // CPU_GPU_SWITCH == 1
+#endif // CUDA_IMPLE == 1
 
         for(int i = begin; i < end; i++) { 
             
@@ -466,25 +470,26 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             // threshold
             Mat thresh;
 
-#if CUDA_IMPLE == 0
-            _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
+#if CUDA_IMPLE == 1
+#if CPU_GPU_SWITCH == 0
+            cudaProcessor.cuda_threshold(greyData, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);           
 #else
-
             cudaProcessor.cuda_threshold(d_src, d_dst, rows, cols, step, currScale, params->adaptiveThreshConstant);
-
             cudaProcessor.download_image_from_VRAM(threshData, d_dst, dataSize);
+#endif // CPU_GPU_SWITCH == 0
 
             cv::Mat threshMat(rows, cols, CV_8UC1);
-            
             memcpy(threshMat.data, threshData, dataSize);
-
             threshMat.copyTo(thresh);
-#endif //CUDA_IMPLE
+            
+#else
+            _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
+#endif // CUDA_IMPLE == 1
 
 #if SHOW_DEBUG_WINDOW
             cv::imshow("Camera Feed", thresh);
             cv::waitKey(0);
-#endif //SHOW_DEBUG_WINDOW
+#endif // SHOW_DEBUG_WINDOW
 
             // detect rectangles
             _findMarkerContours(thresh, (*candidatesArrays)[i], (*contoursArrays)[i],
@@ -492,8 +497,8 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
                                 params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
                                 params->minDistanceToBorder);
         }
-#if CUDA_IMPLE == 1
-    cudaProcessor.free_up_VRAM(d_src, d_dst);
+#if CUDA_IMPLE == 1 && CPU_GPU_SWITCH == 1
+        cudaProcessor.free_up_VRAM(d_src, d_dst);
 #endif
     }
 
@@ -542,11 +547,6 @@ static void _detectInitialCandidates(const Mat &grey, vector< vector< Point2f > 
     parallel_for_(Range(0, nScales), DetectInitialCandidatesParallel(&grey, &candidatesArrays,
                                                                      &contoursArrays, params));
 
-
-    //test cuda---------------------------------->>
-    // cu_aruco::CudaProcessor cudaProcessor;
-    // cudaProcessor.cuda_threshold();
-    //test cuda<<----------------------------------
 
     // join candidates
     for(int i = 0; i < nScales; i++) {
