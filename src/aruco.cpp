@@ -11,6 +11,8 @@
 #include "apriltag_quad_thresh.hpp"
 #include "zarray.hpp"
 
+#include <thread>
+
 //===================================================================================================================================
 /**
   *
@@ -103,6 +105,9 @@ using namespace std;
 using namespace cv;
 // using namespace cv::aruco;
 
+unsigned char* ld_src;
+unsigned char* ld_dst;
+
 Aruco::Aruco() {
     // Constructor implementation
 }
@@ -116,6 +121,19 @@ void Aruco::initCuda() {
     }
 }
 
+void Aruco::codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize){
+    cu_aruco::CudaProcessor cudaProcessor;
+
+    cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize);
+}
+
+void Aruco::free_up_VRAM(unsigned char* d_src, unsigned char* d_dst){
+    cu_aruco::CudaProcessor cudaProcessor;
+
+    cudaProcessor.free_up_VRAM(d_src, d_dst);
+
+}
+
 //====================================================================================================================================
 
 //thresh.cpp
@@ -123,7 +141,7 @@ static void adaptiveThreshold_aruco( InputArray _src, OutputArray _dst, double m
                             int method, int type, int blockSize, double delta )
 {
 
-    printf("adaptiveThreshold_aruco\n");
+    // printf("adaptiveThreshold_aruco\n");
 
     Mat src = _src.getMat();
 
@@ -427,10 +445,32 @@ static void _filterTooCloseCandidates(const vector< vector< Point2f > > &candida
     contoursSetOut.push_back(smallerContours);
 }
 
+
+void update_image_to_VRAM_thread(unsigned char* greyData, unsigned char* threshData, unsigned char* d_src, unsigned char* d_dst, size_t dataSize)
+{
+    // cout << "update image to VRAM thread!!\n";
+
+    cu_aruco::CudaProcessor cudaProcessor;
+
+    cudaProcessor.update_image_to_VRAM(greyData, threshData, ld_src, ld_dst, dataSize);
+}
+
+void download_image_from_VRAM_thread(unsigned char* threshData, unsigned char* d_dst, size_t dataSize)
+{
+    // cout << "download image to VRAM thread!!\n";
+
+    cu_aruco::CudaProcessor cudaProcessor;
+
+    cudaProcessor.download_image_from_VRAM(threshData, ld_dst, dataSize);
+}
+
 /**
   * ParallelLoopBody class for the parallelization of the basic candidate detections using
   * different threhold window sizes. Called from function _detectInitialCandidates()
   */
+unsigned char* threshData;
+thread t1;
+
 class DetectInitialCandidatesParallel : public ParallelLoopBody {
     public:
     DetectInitialCandidatesParallel(const Mat *_grey,
@@ -450,16 +490,21 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
         int rows = grey->rows;
         int cols = grey->cols;
         int step = grey->step;
-        int channels = grey->channels();
-        size_t dataSize = rows * cols * channels * sizeof(unsigned char);
-        unsigned char* greyData = grey->data;
-        unsigned char* threshData = new unsigned char[dataSize];
-
+        // int channels = grey->channels();
+        size_t dataSize = rows * cols * sizeof(unsigned char);
+        // unsigned char* greyData = grey->data;
+        // // unsigned char* threshData = new unsigned char[dataSize];
+        // threshData = new unsigned char[dataSize];
 #if CPU_GPU_SWITCH == 1
-        unsigned char* d_src;  // Device memory for _src
-        unsigned char* d_dst;  // Device memory for _dst
-        cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize);
-        cudaProcessor.update_image_to_VRAM(greyData, threshData, d_src, d_dst, dataSize);
+        // unsigned char* d_src;  // Device memory for _src
+        // unsigned char* d_dst;  // Device memory for _dst
+        // cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize);
+        // cudaProcessor.update_image_to_VRAM(greyData, threshData, ld_src, ld_dst, dataSize);
+        ///////////////////////////testingggggggggggggg threadddddddddddddddddddd///////////////////////////////
+        //Copy the image to the VRAM!!!!!
+        // thread t1(update_image_to_VRAM_thread, greyData, threshData, ld_src, ld_dst, dataSize);
+        // t1.join();
+        ///////////////////////////testingggggggggggggg threadddddddddddddddddddd///////////////////////////////
 #endif // CPU_GPU_SWITCH == 1
 #endif // CUDA_IMPLE == 1
 
@@ -468,27 +513,33 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
             int currScale = params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
 
             // threshold
-            Mat thresh;
+            // Mat thresh;
+            
 
 #if CUDA_IMPLE == 1
+            cv::Mat thresh(rows, cols, CV_8UC1);
 #if CPU_GPU_SWITCH == 0
             cudaProcessor.cuda_threshold(greyData, threshData, rows, cols, step, currScale, params->adaptiveThreshConstant);           
 #else
-            cudaProcessor.cuda_threshold(d_src, d_dst, rows, cols, step, currScale, params->adaptiveThreshConstant);
-            cudaProcessor.download_image_from_VRAM(threshData, d_dst, dataSize);
-#endif // CPU_GPU_SWITCH == 0
+            cudaProcessor.cuda_threshold(ld_src, ld_dst, rows, cols, step, currScale, params->adaptiveThreshConstant);
+            // cudaProcessor.download_image_from_VRAM(threshData, ld_dst, dataSize);
 
-            cv::Mat threshMat(rows, cols, CV_8UC1);
-            memcpy(threshMat.data, threshData, dataSize);
-            threshMat.copyTo(thresh);
+            ///////////////////////////testingggggggggggggg threadddddddddddddddddddd///////////////////////////////
+
+            cudaProcessor.download_image_from_VRAM(thresh.data, ld_dst, dataSize);
             
+            // thread t2(download_image_from_VRAM_thread, threshData, ld_dst, dataSize);
+            // t2.join();
+            ///////////////////////////testingggggggggggggg threadddddddddddddddddddd///////////////////////////////
+#endif // CPU_GPU_SWITCH == 0    
 #else
+            Mat thresh;
             _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
 #endif // CUDA_IMPLE == 1
 
-#if SHOW_DEBUG_WINDOW
-            cv::imshow("Camera Feed", thresh);
-            cv::waitKey(0);
+#if SHOW_DEBUG_WINDOW 
+            // cv::imshow("Camera Feed", thresh);
+            // cv::waitKey(0);
 #endif // SHOW_DEBUG_WINDOW
 
             // detect rectangles
@@ -498,7 +549,7 @@ class DetectInitialCandidatesParallel : public ParallelLoopBody {
                                 params->minDistanceToBorder);
         }
 #if CUDA_IMPLE == 1 && CPU_GPU_SWITCH == 1
-        cudaProcessor.free_up_VRAM(d_src, d_dst);
+        // cudaProcessor.free_up_VRAM(d_src, d_dst);
 #endif
     }
 
@@ -544,6 +595,11 @@ static void _detectInitialCandidates(const Mat &grey, vector< vector< Point2f > 
     //}
 
     // this is the parallel call for the previous commented loop (result is equivalent)
+
+    ///////////////////////////testingggggggggggggg threadddddddddddddddddddd///////////////////////////////
+    t1.join();
+    ///////////////////////////testingggggggggggggg threadddddddddddddddddddd///////////////////////////////
+
     parallel_for_(Range(0, nScales), DetectInitialCandidatesParallel(&grey, &candidatesArrays,
                                                                      &contoursArrays, params));
 
@@ -570,6 +626,15 @@ static void _detectCandidates(InputArray _image, vector< vector< vector< Point2f
     /// 1. CONVERT TO GRAY
     Mat grey;
     _convertToGrey(image, grey);
+
+    ////////////////////////////testinggggggggggggggggggggggggggggggggggggggggggggggggggggggg
+    //Copy the image to the VRAM!!!!!
+    size_t dataSize = grey.rows * grey.cols * sizeof(unsigned char);
+    threshData = new unsigned char[dataSize];
+
+    t1 = thread(update_image_to_VRAM_thread, grey.data, threshData, ld_src, ld_dst, dataSize);
+    ////////////////////////////testinggggggggggggggggggggggggggggggggggggggggggggggggggggggg
+
 
     vector< vector< Point2f > > candidates;
     vector< vector< Point > > contours;
@@ -1227,17 +1292,20 @@ static void _apriltag(Mat im_orig, const Ptr<DetectorParameters> & _params, std:
     _zarray_destroy(quads);
 }
 
-
 /**
   */
 void Aruco::detectMarkers(InputArray _image, const Ptr<Dictionary> &_dictionary, OutputArrayOfArrays _corners,
                    OutputArray _ids, const Ptr<DetectorParameters> &_params,
-                   OutputArrayOfArrays _rejectedImgPoints) {
+                   OutputArrayOfArrays _rejectedImgPoints,
+                   unsigned char* d_src, unsigned char* d_dst) {
 
     CV_Assert(!_image.empty());
 
     Mat grey;
     _convertToGrey(_image.getMat(), grey);
+
+    ld_src = d_src;
+    ld_dst = d_dst;
 
     // cu_aruco::CudaProcessor cudaProcessor;
     // cudaProcessor.cuda_threshold();

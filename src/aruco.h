@@ -7,7 +7,7 @@
 #include <vector>
 
 #define CUDA_IMPLE 1 //0:OPENCV : 1:CUDA
-#define SHOW_DEBUG_WINDOW 0 //0:OFF ; 1:ON
+#define SHOW_DEBUG_WINDOW 1 //0:OFF ; 1:ON
 #define CPU_GPU_SWITCH 1 //0: CPU ; 1: GPU
 
 namespace aruco {
@@ -18,9 +18,15 @@ class Aruco {
 public:
     Aruco(); // Constructor declaration
     void initCuda(); // Member function declaration
+
+    void codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize);
+
+    void free_up_VRAM(unsigned char* d_src, unsigned char* d_dst);
+
     void detectMarkers(InputArray _image, const Ptr<cv::aruco::Dictionary> &_dictionary, OutputArrayOfArrays _corners,
                    OutputArray _ids, const Ptr<cv::aruco::DetectorParameters> &_params,
-                   OutputArrayOfArrays _rejectedImgPoints);
+                   OutputArrayOfArrays _rejectedImgPoints,
+                   unsigned char* d_src, unsigned char* d_dst);
 
 };
 
