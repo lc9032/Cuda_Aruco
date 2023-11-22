@@ -70,6 +70,8 @@ static inline bool readParameter(const cv::FileNode& node, T& parameter)
 /**
   * @brief Read a new set of DetectorParameters from FileStorage.
   */
+
+#if OPENCV_VER == 0
 bool cv::aruco::DetectorParameters::readDetectorParameters(const cv::FileNode& fn)
 {
     if(fn.empty())
@@ -97,6 +99,37 @@ bool cv::aruco::DetectorParameters::readDetectorParameters(const cv::FileNode& f
     checkRead |= readParameter(fn["errorCorrectionRate"], this->errorCorrectionRate);
     return checkRead;
 }
+#else
+
+bool cv::aruco::DetectorParameters::readDetectorParameters(const FileNode& fn, Ptr<DetectorParameters>& params)
+{
+    if(fn.empty())
+        return true;
+    params = DetectorParameters::create();
+    bool checkRead = false;
+    checkRead |= readParameter(fn["adaptiveThreshWinSizeMin"], params->adaptiveThreshWinSizeMin);
+    checkRead |= readParameter(fn["adaptiveThreshWinSizeMax"], params->adaptiveThreshWinSizeMax);
+    checkRead |= readParameter(fn["adaptiveThreshWinSizeStep"], params->adaptiveThreshWinSizeStep);
+    checkRead |= readParameter(fn["adaptiveThreshConstant"], params->adaptiveThreshConstant);
+    checkRead |= readParameter(fn["minMarkerPerimeterRate"], params->minMarkerPerimeterRate);
+    checkRead |= readParameter(fn["maxMarkerPerimeterRate"], params->maxMarkerPerimeterRate);
+    checkRead |= readParameter(fn["polygonalApproxAccuracyRate"], params->polygonalApproxAccuracyRate);
+    checkRead |= readParameter(fn["minCornerDistanceRate"], params->minCornerDistanceRate);
+    checkRead |= readParameter(fn["minDistanceToBorder"], params->minDistanceToBorder);
+    checkRead |= readParameter(fn["minMarkerDistanceRate"], params->minMarkerDistanceRate);
+    checkRead |= readParameter(fn["cornerRefinementMethod"], params->cornerRefinementMethod);
+    checkRead |= readParameter(fn["cornerRefinementWinSize"], params->cornerRefinementWinSize);
+    checkRead |= readParameter(fn["cornerRefinementMaxIterations"], params->cornerRefinementMaxIterations);
+    checkRead |= readParameter(fn["cornerRefinementMinAccuracy"], params->cornerRefinementMinAccuracy);
+    checkRead |= readParameter(fn["markerBorderBits"], params->markerBorderBits);
+    checkRead |= readParameter(fn["perspectiveRemovePixelPerCell"], params->perspectiveRemovePixelPerCell);
+    checkRead |= readParameter(fn["perspectiveRemoveIgnoredMarginPerCell"], params->perspectiveRemoveIgnoredMarginPerCell);
+    checkRead |= readParameter(fn["maxErroneousBitsInBorderRate"], params->maxErroneousBitsInBorderRate);
+    checkRead |= readParameter(fn["minOtsuStdDev"], params->minOtsuStdDev);
+    checkRead |= readParameter(fn["errorCorrectionRate"], params->errorCorrectionRate);
+    return checkRead;
+}
+#endif
 //===================================================================================================================================
 
 namespace aruco {
@@ -954,6 +987,7 @@ static void _identifyCandidates(InputArray _image, vector< vector< vector< Point
   * @brief Return object points for the system centered in a middle (by default) or in a top left corner of single
   * marker, given the marker length
   */
+#if OPENCV_VER == 0
 static void _getSingleMarkerObjectPoints(float markerLength, OutputArray _objPoints,
                                          EstimateParameters estimateParameters) {
 
@@ -977,7 +1011,20 @@ static void _getSingleMarkerObjectPoints(float markerLength, OutputArray _objPoi
     else
         CV_Error(Error::StsBadArg, "Unknown estimateParameters pattern");
 }
+#else
+static void _getSingleMarkerObjectPoints(float markerLength, OutputArray _objPoints) {
 
+    CV_Assert(markerLength > 0);
+
+    _objPoints.create(4, 1, CV_32FC3);
+    Mat objPoints = _objPoints.getMat();
+    // set coordinate system in the middle of the marker, with Z pointing out
+    objPoints.ptr< Vec3f >(0)[0] = Vec3f(-markerLength / 2.f, markerLength / 2.f, 0);
+    objPoints.ptr< Vec3f >(0)[1] = Vec3f(markerLength / 2.f, markerLength / 2.f, 0);
+    objPoints.ptr< Vec3f >(0)[2] = Vec3f(markerLength / 2.f, -markerLength / 2.f, 0);
+    objPoints.ptr< Vec3f >(0)[3] = Vec3f(-markerLength / 2.f, -markerLength / 2.f, 0);
+}
+#endif
 
 
 

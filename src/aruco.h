@@ -10,6 +10,8 @@
 #define SHOW_DEBUG_WINDOW 1 //0:OFF ; 1:ON
 #define CPU_GPU_SWITCH 1 //0: CPU ; 1: GPU
 
+#define OPENCV_VER 0 //1: for Jetson
+
 namespace aruco {
 
 using namespace cv;

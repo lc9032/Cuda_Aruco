@@ -7,10 +7,31 @@
 #include <opencv2/aruco.hpp>
 #include <thread>
 
-#define CAPTURE_FRAME 0
-#define CAL_TIME_CONSUME 0
+#define CAPTURE_FRAME 0 //0:use local image, 1:use laptop camera, 2:use JETSON camera
+#define CAL_TIME_CONSUME 1
 
 using namespace std;
+
+
+#if CAPTURE_FRAME == 2
+static cv::VideoCapture create_capture(int width, int height, int fps) {
+    std::stringstream pipeline_str;
+    /*
+    pipeline_str << "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)"
+        << std::to_string(width) << ", height=(int)" << std::to_string(height)
+        << ", format=(string)NV12, framerate=(fraction)" << std::to_string(fps)
+        << "/1 ! nvvidconv ! video/x-raw, format=(string)I420 ! videoconvert"
+        " ! video/x-raw, format=(string)BGR ! appsink ";
+    */
+    pipeline_str << "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)"
+        << std::to_string(width) << ", height=(int)" << std::to_string(height)
+        << ", format=(string)NV12, framerate=(fraction)" << std::to_string(fps)
+        << "/1 ! nvvidconv ! video/x-raw, format=(string)GRAY8 ! videoconvert"
+        " ! appsink ";
+
+    return cv::VideoCapture(pipeline_str.str(), cv::CAP_GSTREAMER);
+}
+#endif
 
 int main() {
     aruco::Aruco aruco;  // Create an instance of the Aruco class
@@ -20,7 +41,12 @@ int main() {
 
     cv::Mat frame;
 
-#if CAPTURE_FRAME
+#if CAPTURE_FRAME == 0
+    cv::Mat markerImage;
+    markerImage = cv::imread("pics/123_123.png");
+    frame = markerImage.clone();
+
+#elif CAPTURE_FRAME == 1
     cv::VideoCapture cap(0);
 
     if (!cap.isOpened()) {
@@ -33,12 +59,10 @@ int main() {
 
     cap >> frame;
 
-#else
+#elif CAPTURE_FRAME == 2
+    cv::VideoCapture cap = create_capture(1280, 720, 10);
 
-    cv::Mat markerImage;
-    markerImage = cv::imread("pics/123_123.png");
-    frame = markerImage.clone();
-
+    cap >> frame;
 #endif
 
     cv::namedWindow("Camera Feed", cv::WINDOW_NORMAL);
@@ -46,13 +70,11 @@ int main() {
     //malloc VRAM here
     unsigned char* d_src;  // Device memory for _src
     unsigned char* d_dst;  // Device memory for _dst
-    size_t dataSize = frame.cols * frame.rows;
-
-    printf("datasize = %d",frame.cols * frame.rows);
+    size_t dataSize = frame.cols * frame.rows * sizeof(unsigned char);
 
     aruco.codaMalloc_space_for_image(d_src, d_dst,dataSize);
 
-#if CAPTURE_FRAME
+#if CAPTURE_FRAME == 1 || CAPTURE_FRAME == 2
     while(true) {
         
         // Capture a frame from the camera
@@ -64,9 +86,7 @@ int main() {
             break;
         }
 
-        cv::flip(frame, frame, 1);
-#else
-        
+        // cv::flip(frame, frame, 1);
        
 #endif
 
@@ -93,10 +113,10 @@ int main() {
 
         // Display the frame in the window
         cv::imshow("Camera Feed", frame);
+
+#if CAPTURE_FRAME == 0
         cv::waitKey(0);
-
-
-#if CAPTURE_FRAME
+#else
         //Check for user input to exit (e.g., press 'q' key to quit)
         if (cv::waitKey(1) == 'q') {
             break;
@@ -104,6 +124,7 @@ int main() {
     }
 
     cap.release();
+
 #endif
 
     //free up VRAM
