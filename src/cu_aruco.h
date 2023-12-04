@@ -19,7 +19,6 @@ public:
 
     void free_up_VRAM(unsigned char* d_src, unsigned char* d_dst);
 
-    // Declare the cuda_threshold method
     void cuda_threshold(const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step, int winSize, double constant);
 };
 

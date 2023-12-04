@@ -122,7 +122,7 @@ __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
 //     }
 // }
 
-void threshold_kernel_cpu(const unsigned char* _src, unsigned char* _dst,
+static void threshold_kernel_cpu(const unsigned char* _src, unsigned char* _dst,
                                  int rows, int cols, int blockSize,
                                  double c) {
 	// printf("threshold_kernel_cpu!!!!!!\n");
@@ -167,7 +167,7 @@ void CudaProcessor::codaMalloc_space_for_image(unsigned char*& d_src, unsigned c
 void CudaProcessor::update_image_to_VRAM(unsigned char* _src, unsigned char* _dst, unsigned char* d_src, unsigned char* d_dst, size_t dataSize){
     cudaMemcpy(d_src, _src, dataSize, cudaMemcpyHostToDevice);
 
-    cudaMemcpy(d_dst, _dst, dataSize, cudaMemcpyHostToDevice);//
+    // cudaMemcpy(d_dst, _dst, dataSize, cudaMemcpyHostToDevice);//
 }
 
 void CudaProcessor::download_image_from_VRAM(unsigned char* _dst, unsigned char* d_dst, size_t dataSize){
@@ -200,14 +200,6 @@ void CudaProcessor::cuda_threshold(const unsigned char* d_src, unsigned char* d_
 	dim3 threads(16, 16);
 
     threshold_kernel<<<blocks, threads>>>(d_src, d_dst, rows, cols, winSize, constant);
-
-    // int* d_mean;
-    // size_t dataSize = rows * cols * sizeof(unsigned char);
-    // cudaMalloc((void**)&d_mean, dataSize);
-
-    // calculateMean<<<blocks, threads>>>(d_src, d_mean, rows, cols, winSize);
-
-    // applyThreshold<<<blocks, threads>>>(d_src, d_dst, d_mean, rows, cols, constant);
 
 }
 #endif
