@@ -29,6 +29,12 @@ static cv::VideoCapture create_capture(int width, int height, int fps) {
         << "/1 ! nvvidconv ! video/x-raw, format=(string)GRAY8 ! videoconvert"
         " ! appsink ";
 
+    pipeline_str << "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)"
+    << std::to_string(width) << ", height=(int)" << std::to_string(height)
+    << ", format=(string)NV12, framerate=(fraction)" << std::to_string(fps)
+    << "/1 ! nvvidconv ! video/x-raw, format=(string)GRAY8 ! videoconvert"
+    ", format=(string)NV12 ! video/x-raw(memory:NVMM), format=(string)NV12 ! appsink ";
+
     return cv::VideoCapture(pipeline_str.str(), cv::CAP_GSTREAMER);
 }
 #endif
@@ -43,7 +49,7 @@ int main() {
 
 #if CAPTURE_FRAME == 0
     cv::Mat markerImage;
-    markerImage = cv::imread("pics/123_123.png");
+    markerImage = cv::imread("pics/test1.png");
     frame = markerImage.clone();
 
 #elif CAPTURE_FRAME == 1
@@ -72,7 +78,12 @@ int main() {
     unsigned char* d_dst;  // Device memory for _dst
     size_t dataSize = frame.cols * frame.rows * sizeof(unsigned char);
 
-    aruco.codaMalloc_space_for_image(d_src, d_dst,dataSize);
+    aruco.codaMalloc_space_for_image(d_src, d_dst, dataSize);
+
+    std::vector<int> markerIds;
+    std::vector<std::vector<cv::Point2f>> markerCorners;
+    cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
+    cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_50);
 
 #if CAPTURE_FRAME == 1 || CAPTURE_FRAME == 2
     while(true) {
@@ -89,11 +100,6 @@ int main() {
         // cv::flip(frame, frame, 1);
        
 #endif
-
-        std::vector<int> markerIds;
-        std::vector<std::vector<cv::Point2f>> markerCorners;
-        cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
-        cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_50);
 
 #if CAL_TIME_CONSUME
         clock_t time_used;
