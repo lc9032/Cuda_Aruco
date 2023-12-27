@@ -579,24 +579,23 @@ static void _cudaThreshold_n(InputArray _in, Mat _out[], const Ptr<DetectorParam
     size_t dataSize = rows * cols * sizeof(unsigned char);
     cv::Mat thresh(rows, cols, CV_8UC1);
 
-    unsigned char* ld_dst1;
-    unsigned char* ld_dst2;
-    unsigned char* ld_dst3;
-
-    ld_dst1 = ld_dst;
-    ld_dst2 = ld_dst + dataSize;
-    ld_dst3 = ld_dst + 2 * dataSize;
-
     int winSize = params->adaptiveThreshWinSizeMin + 1*params->adaptiveThreshWinSizeStep;//TODO!!!!!!!!!!!!!!!!!!
     double constant = params->adaptiveThreshConstant;//TODO!!!!!!!!!!!!!!
 
     cudaProcessor.cuda_threshold_n(ld_src, ld_dst, rows, cols, step, winSize, constant, 3);//todo:!!!!!!!!!!!!
-    cudaProcessor.download_image_from_VRAM(_out[0].data, ld_dst1, dataSize);
-    cudaProcessor.download_image_from_VRAM(_out[1].data, ld_dst2, dataSize);
-    cudaProcessor.download_image_from_VRAM(_out[2].data, ld_dst3, dataSize);
+    cudaProcessor.download_image_from_VRAM(_out[0].data, ld_dst, dataSize);
+    cudaProcessor.download_image_from_VRAM(_out[1].data, ld_dst + dataSize, dataSize);
+    cudaProcessor.download_image_from_VRAM(_out[2].data, ld_dst + 2 * dataSize, dataSize);
     
 #if SHOW_DEBUG_WINDOW 
-    cv::imshow("Camera Feed", thresh);
+    // cv::imshow("Camera Feed", thresh);
+    cv::imshow("Camera Feed", _out[0]);
+    cv::waitKey(0);
+
+    cv::imshow("Camera Feed", _out[1]);
+    cv::waitKey(0);
+
+    cv::imshow("Camera Feed", _out[2]);
     cv::waitKey(0);
 #endif // SHOW_DEBUG_WINDOW
 }
@@ -632,6 +631,19 @@ static void _cudaThreshold(InputArray _in, OutputArray _out, int winSize, double
 }
 
 #endif //PARALLEL_FOR_IMPLE
+
+
+void processScale(const cv::Mat& thresh, std::vector<std::vector<cv::Point2f>>& candidates, std::vector<std::vector<cv::Point>>& contours, const Ptr<DetectorParameters> &params) {
+    // std::vector<std::vector<cv::Point> > candidates;
+    // std::vector<std::vector<cv::Point> > contours;
+
+    _findMarkerContours(thresh, candidates, contours,
+        params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
+        params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
+        params->minDistanceToBorder);
+
+    // Process the results as needed
+}
 
 /**
  * @brief Initial steps on finding square candidates
@@ -698,15 +710,35 @@ for(int i = 0; i < nScales; i++) {
         thresh[i] = Mat(grey.rows, grey.cols, CV_8UC1);
     }
 
+        // clock_t time_used;
+	    // clock_t start = clock();
+
     _cudaThreshold_n(grey, thresh, params);
 
-    for(int i = 0; i < nScales; i++) {
-        // detect rectangles
-        _findMarkerContours(thresh[i], candidatesArrays[i], contoursArrays[i],
-                                params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
-                                params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
-                                params->minDistanceToBorder);
-    }
+        // time_used = clock() - start;
+        // double time_in_ms = static_cast<double>(time_used) / CLOCKS_PER_SEC * 1000.0;
+        // printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms);
+
+        // clock_t time_used2;
+	    // clock_t start2 = clock();
+
+    // for(int i = 0; i < nScales; i++) {
+    //     // detect rectangles
+    //     _findMarkerContours(thresh[i], candidatesArrays[i], contoursArrays[i],
+    //                             params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
+    //                             params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
+    //                             params->minDistanceToBorder);
+    // }
+
+    cv::parallel_for_(cv::Range(0, nScales), [&](const cv::Range& range) {
+        for (int i = range.start; i < range.end; i++) {
+            processScale(thresh[i], candidatesArrays[i], contoursArrays[i], params);
+        }
+    });
+
+        // time_used2 = clock() - start2;
+        // double time_in_ms2 = static_cast<double>(time_used2) / CLOCKS_PER_SEC * 1000.0;
+        // printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms2);
 
 #elif PARALLEL_FOR_IMPLE == 2
     // this is the parallel call for the previous commented loop (result is equivalent)

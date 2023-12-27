@@ -29,11 +29,11 @@ static cv::VideoCapture create_capture(int width, int height, int fps) {
         << "/1 ! nvvidconv ! video/x-raw, format=(string)GRAY8 ! videoconvert"
         " ! appsink ";
 
-    pipeline_str << "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)"
-    << std::to_string(width) << ", height=(int)" << std::to_string(height)
-    << ", format=(string)NV12, framerate=(fraction)" << std::to_string(fps)
-    << "/1 ! nvvidconv ! video/x-raw, format=(string)GRAY8 ! videoconvert"
-    ", format=(string)NV12 ! video/x-raw(memory:NVMM), format=(string)NV12 ! appsink ";
+    // pipeline_str << "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)"
+    // << std::to_string(width) << ", height=(int)" << std::to_string(height)
+    // << ", format=(string)NV12, framerate=(fraction)" << std::to_string(fps)
+    // << "/1 ! nvvidconv ! video/x-raw, format=(string)GRAY8 ! videoconvert"
+    // ", format=(string)NV12 ! video/x-raw(memory:NVMM), format=(string)NV12 ! appsink ";
 
     return cv::VideoCapture(pipeline_str.str(), cv::CAP_GSTREAMER);
 }
