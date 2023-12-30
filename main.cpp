@@ -12,6 +12,16 @@
 
 using namespace std;
 
+void test1(void)
+{
+  for(int x=0; x<5000; x++);
+}
+
+void test2(void)
+{
+  for(int x=0; x<50000; x++);
+}
+
 
 #if CAPTURE_FRAME == 2
 static cv::VideoCapture create_capture(int width, int height, int fps) {
@@ -106,8 +116,14 @@ int main() {
 	    clock_t start = clock();
 #endif
 
+        // int cnt=1000;
+
+        // while(cnt--){
+
         aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray(), d_src, d_dst);
         // cv::aruco::detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
+
+        // }
 
 #if CAL_TIME_CONSUME
         time_used = clock() - start;
@@ -138,5 +154,109 @@ int main() {
 
     cv::destroyAllWindows();
 
+    /////////////////////////////////
+
+    // cnt=10000;
+    // printf("hello\n");
+    // while(cnt--){
+    //     test1();
+
+    //     test2();
+    // }
+
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// //build: g++ -o main main.cpp `pkg-config --libs --cflags opencv`
+
+// #include <opencv2/opencv.hpp> 
+// #include <opencv2/core/core.hpp>
+// #include <opencv2/videoio/videoio.hpp>
+// #include <opencv2/highgui/highgui.hpp>
+// #include <opencv2/imgproc/imgproc.hpp>
+// #include <opencv2/aruco.hpp>
+// #include <iostream> 
+
+// using namespace cv;
+// using namespace std;
+
+// void test1(void)
+// {
+//   for(int x=0; x<5000; x++);
+// }
+
+// void test2(void)
+// {
+//   for(int x=0; x<50000; x++);
+// }
+
+// int main(int argc, char** argv)
+// {
+//     cv::Mat markerImage;
+//     // markerImage = imread("AR.jpg");
+//     markerImage = imread("pics/test1.png");
+    
+
+//     if (markerImage.empty()) 
+//     {
+//         cout << "Could not open or find the image" << endl;
+//         cin.get();
+//         return -1;
+//     }
+
+//     // cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_250);
+//     // cv::aruco::generateImageMarker(dictionary, 23, 200, markerImage, 1);
+//     // cv::imwrite("marker23.png", markerImage);
+
+
+//     std::vector<int> markerIds;
+//     std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
+//     cv::aruco::DetectorParameters detectorParams = cv::aruco::DetectorParameters();
+//     // cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_250);
+//     cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
+
+//     // cv::aruco::ArucoDetector detector(dictionary, detectorParams);
+//     // detector.detectMarkers(markerImage, markerCorners, markerIds, rejectedCandidates);
+
+//     // aruco.detectMarkers(markerImage, dictionary, markerCorners, markerIds, detectorParams, cv::noArray(), d_src, d_dst);
+//     cv::aruco::detectMarkers(markerImage, dictionary, markerCorners, markerIds, detectorParams, cv::noArray());
+
+//     cv::Mat outputImage = markerImage.clone();
+//     cv::aruco::drawDetectedMarkers(outputImage, markerCorners, markerIds);
+
+//     printf("test\n");
+
+//     String windowName = "OpenCV Test";
+//     namedWindow(windowName,cv::WINDOW_NORMAL);
+//     cv::resizeWindow(windowName, 800, 600);
+//     imshow(windowName, markerImage);
+//     waitKey(0);
+//     destroyWindow(windowName);
+
+//     int cnt=10000;
+//     printf("hello\n");
+//     while(cnt--){
+//         test1();
+
+//         test2();
+//     }
+
+//     return 0;
+// }
+

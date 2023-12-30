@@ -9,6 +9,12 @@ src/libaruco.a
 src/libcu_aruco.a
 src/Makefile
 
+# Ignore gprof files
+gmon.out
+result.txt
+result.png
+gprof2dot.py
+
 # Ignore build directories
 /CMakeFiles/
 /src/CMakeFiles/

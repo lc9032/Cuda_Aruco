@@ -481,92 +481,92 @@ static void _filterTooCloseCandidates(const vector< vector< Point2f > > &candida
 }
 
 
-void update_image_to_VRAM_thread(unsigned char* greyData, unsigned char* threshData, unsigned char* d_src, unsigned char* d_dst, size_t dataSize)
-{
-    // cout << "update image to VRAM thread!!\n";
+// void update_image_to_VRAM_thread(unsigned char* greyData, unsigned char* threshData, unsigned char* d_src, unsigned char* d_dst, size_t dataSize)
+// {
+//     // cout << "update image to VRAM thread!!\n";
 
-    cu_aruco::CudaProcessor cudaProcessor;
+//     cu_aruco::CudaProcessor cudaProcessor;
 
-    cudaProcessor.update_image_to_VRAM(greyData, threshData, ld_src, ld_dst, dataSize);
-}
+//     cudaProcessor.update_image_to_VRAM(greyData, threshData, ld_src, ld_dst, dataSize);
+// }
 
-void download_image_from_VRAM_thread(unsigned char* threshData, unsigned char* d_dst, size_t dataSize)
-{
-    // cout << "download image to VRAM thread!!\n";
+// void download_image_from_VRAM_thread(unsigned char* threshData, unsigned char* d_dst, size_t dataSize)
+// {
+//     // cout << "download image to VRAM thread!!\n";
 
-    cu_aruco::CudaProcessor cudaProcessor;
+//     cu_aruco::CudaProcessor cudaProcessor;
 
-    cudaProcessor.download_image_from_VRAM(threshData, ld_dst, dataSize);
-}
+//     cudaProcessor.download_image_from_VRAM(threshData, ld_dst, dataSize);
+// }
 
-#if PARALLEL_FOR_IMPLE == 2
-// /**
-//   * ParallelLoopBody class for the parallelization of the basic candidate detections using
-//   * different threhold window sizes. Called from function _detectInitialCandidates()
-//   */
-class DetectInitialCandidatesParallel : public ParallelLoopBody {
-    public:
-    DetectInitialCandidatesParallel(const Mat *_grey,
-                                    vector< vector< vector< Point2f > > > *_candidatesArrays,
-                                    vector< vector< vector< Point > > > *_contoursArrays,
-                                    const Ptr<DetectorParameters> &_params)
-        : grey(_grey), candidatesArrays(_candidatesArrays), contoursArrays(_contoursArrays),
-          params(_params) {}
+// #if PARALLEL_FOR_IMPLE == 2
+// // /**
+// //   * ParallelLoopBody class for the parallelization of the basic candidate detections using
+// //   * different threhold window sizes. Called from function _detectInitialCandidates()
+// //   */
+// class DetectInitialCandidatesParallel : public ParallelLoopBody {
+//     public:
+//     DetectInitialCandidatesParallel(const Mat *_grey,
+//                                     vector< vector< vector< Point2f > > > *_candidatesArrays,
+//                                     vector< vector< vector< Point > > > *_contoursArrays,
+//                                     const Ptr<DetectorParameters> &_params)
+//         : grey(_grey), candidatesArrays(_candidatesArrays), contoursArrays(_contoursArrays),
+//           params(_params) {}
 
-    void operator()(const Range &range) const CV_OVERRIDE {
-        const int begin = range.start;
-        const int end = range.end;
+//     void operator()(const Range &range) const CV_OVERRIDE {
+//         const int begin = range.start;
+//         const int end = range.end;
 
-#if CUDA_IMPLE == 1
-        cu_aruco::CudaProcessor cudaProcessor;
+// #if CUDA_IMPLE == 1
+//         cu_aruco::CudaProcessor cudaProcessor;
 
-        int rows = grey->rows;
-        int cols = grey->cols;
-        int step = grey->step;
-        size_t dataSize = rows * cols * sizeof(unsigned char);
-#endif // CUDA_IMPLE == 1
+//         int rows = grey->rows;
+//         int cols = grey->cols;
+//         int step = grey->step;
+//         size_t dataSize = rows * cols * sizeof(unsigned char);
+// #endif // CUDA_IMPLE == 1
 
-        for(int i = begin; i < end; i++) { 
+//         for(int i = begin; i < end; i++) { 
             
-            int currScale = params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
+//             int currScale = params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
 
-#if CUDA_IMPLE == 1
-            cv::Mat thresh(rows, cols, CV_8UC1);
-#if CPU_GPU_SWITCH == 0
-            cudaProcessor.cuda_threshold(grey->data, thresh.data, rows, cols, step, currScale, params->adaptiveThreshConstant);           
-#else
-            cudaProcessor.cuda_threshold(ld_src, ld_dst, rows, cols, step, currScale, params->adaptiveThreshConstant);
-            cudaProcessor.download_image_from_VRAM(thresh.data, ld_dst, dataSize);
+// #if CUDA_IMPLE == 1
+//             cv::Mat thresh(rows, cols, CV_8UC1);
+// #if CPU_GPU_SWITCH == 0
+//             cudaProcessor.cuda_threshold(grey->data, thresh.data, rows, cols, step, currScale, params->adaptiveThreshConstant);           
+// #else
+//             cudaProcessor.cuda_threshold(ld_src, ld_dst, rows, cols, step, currScale, params->adaptiveThreshConstant);
+//             cudaProcessor.download_image_from_VRAM(thresh.data, ld_dst, dataSize);
 
-#endif // CPU_GPU_SWITCH == 0    
-#else
-            Mat thresh;
-            _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
-#endif // CUDA_IMPLE == 1
+// #endif // CPU_GPU_SWITCH == 0    
+// #else
+//             Mat thresh;
+//             _threshold(*grey, thresh, currScale, params->adaptiveThreshConstant);
+// #endif // CUDA_IMPLE == 1
 
-#if SHOW_DEBUG_WINDOW 
-            cv::imshow("Camera Feed", thresh);
-            cv::waitKey(0);
-#endif // SHOW_DEBUG_WINDOW
+// #if SHOW_DEBUG_WINDOW 
+//             cv::imshow("Camera Feed", thresh);
+//             cv::waitKey(0);
+// #endif // SHOW_DEBUG_WINDOW
 
-            // detect rectangles
-            _findMarkerContours(thresh, (*candidatesArrays)[i], (*contoursArrays)[i],
-                                params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
-                                params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
-                                params->minDistanceToBorder);
-        }
-    }
+//             // detect rectangles
+//             _findMarkerContours(thresh, (*candidatesArrays)[i], (*contoursArrays)[i],
+//                                 params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
+//                                 params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
+//                                 params->minDistanceToBorder);
+//         }
+//     }
 
-    private:
-    DetectInitialCandidatesParallel &operator=(const DetectInitialCandidatesParallel &);
+//     private:
+//     DetectInitialCandidatesParallel &operator=(const DetectInitialCandidatesParallel &);
 
-    const Mat *grey;
-    vector< vector< vector< Point2f > > > *candidatesArrays;
-    vector< vector< vector< Point > > > *contoursArrays;
-    const Ptr<DetectorParameters> &params;
-};
+//     const Mat *grey;
+//     vector< vector< vector< Point2f > > > *candidatesArrays;
+//     vector< vector< vector< Point > > > *contoursArrays;
+//     const Ptr<DetectorParameters> &params;
+// };
 
-#elif PARALLEL_FOR_IMPLE == 1
+// #elif PARALLEL_FOR_IMPLE == 1
 
 static void _cudaThreshold_n(InputArray _in, Mat _out[], const Ptr<DetectorParameters> &params){
    
@@ -600,37 +600,37 @@ static void _cudaThreshold_n(InputArray _in, Mat _out[], const Ptr<DetectorParam
 #endif // SHOW_DEBUG_WINDOW
 }
 
-#elif PARALLEL_FOR_IMPLE == 0
+// #elif PARALLEL_FOR_IMPLE == 0
 
-static void _cudaThreshold(InputArray _in, OutputArray _out, int winSize, double constant) {
+// static void _cudaThreshold(InputArray _in, OutputArray _out, int winSize, double constant) {
 
-        cu_aruco::CudaProcessor cudaProcessor;
+//         cu_aruco::CudaProcessor cudaProcessor;
 
-        Mat grey = _in.getMat();
-        int rows = grey.rows;
-        int cols = grey.cols;
-        int step = grey.step;
-        size_t dataSize = rows * cols * sizeof(unsigned char);
-        cv::Mat thresh(rows, cols, CV_8UC1);
+//         Mat grey = _in.getMat();
+//         int rows = grey.rows;
+//         int cols = grey.cols;
+//         int step = grey.step;
+//         size_t dataSize = rows * cols * sizeof(unsigned char);
+//         cv::Mat thresh(rows, cols, CV_8UC1);
 
-#if CPU_GPU_SWITCH == 0
-        cudaProcessor.cuda_threshold(grey.data, thresh.data, rows, cols, step, winSize, constant);           
-#else
-        cudaProcessor.cuda_threshold(ld_src, ld_dst, rows, cols, step, winSize, constant);
-        cudaProcessor.download_image_from_VRAM(thresh.data, ld_dst, dataSize);
-#endif // CPU_GPU_SWITCH == 0
+// #if CPU_GPU_SWITCH == 0
+//         cudaProcessor.cuda_threshold(grey.data, thresh.data, rows, cols, step, winSize, constant);           
+// #else
+//         cudaProcessor.cuda_threshold(ld_src, ld_dst, rows, cols, step, winSize, constant);
+//         cudaProcessor.download_image_from_VRAM(thresh.data, ld_dst, dataSize);
+// #endif // CPU_GPU_SWITCH == 0
 
 
-    _out.assign(thresh);
+//     _out.assign(thresh);
 
-#if SHOW_DEBUG_WINDOW 
-        cv::imshow("Camera Feed", thresh);
-        cv::waitKey(0);
-#endif // SHOW_DEBUG_WINDOW
+// #if SHOW_DEBUG_WINDOW 
+//         cv::imshow("Camera Feed", thresh);
+//         cv::waitKey(0);
+// #endif // SHOW_DEBUG_WINDOW
     
-}
+// }
 
-#endif //PARALLEL_FOR_IMPLE
+// #endif //PARALLEL_FOR_IMPLE
 
 
 void processScale(const cv::Mat& thresh, std::vector<std::vector<cv::Point2f>>& candidates, std::vector<std::vector<cv::Point>>& contours, const Ptr<DetectorParameters> &params) {
@@ -680,29 +680,31 @@ static void _detectInitialCandidates(const Mat &grey, vector< vector< Point2f > 
     //Copy the image to the VRAM!!!!!
     size_t dataSize = grey.rows * grey.cols * sizeof(unsigned char);
     unsigned char* threshData = new unsigned char[dataSize];
-    update_image_to_VRAM_thread(grey.data, threshData, ld_src, ld_dst, dataSize);
+    // update_image_to_VRAM_thread(grey.data, threshData, ld_src, ld_dst, dataSize);
+    cu_aruco::CudaProcessor cudaProcessor;
+    cudaProcessor.update_image_to_VRAM(grey.data, threshData, ld_src, ld_dst, dataSize);
 
-#if PARALLEL_FOR_IMPLE == 0
+// #if PARALLEL_FOR_IMPLE == 0
 
-for(int i = 0; i < nScales; i++) {
-        int currScale = params->adaptiveThreshWinSizeMin + i*params->adaptiveThreshWinSizeStep;
-        // treshold
-        Mat thresh;
+// for(int i = 0; i < nScales; i++) {
+//         int currScale = params->adaptiveThreshWinSizeMin + i*params->adaptiveThreshWinSizeStep;
+//         // treshold
+//         Mat thresh;
 
-#if CUDA_IMPLE == 1
-        _cudaThreshold(grey, thresh, currScale, params->adaptiveThreshConstant);
-#else
-        _threshold(grey, thresh, currScale, params->adaptiveThreshConstant);
-#endif
+// #if CUDA_IMPLE == 1
+//         _cudaThreshold(grey, thresh, currScale, params->adaptiveThreshConstant);
+// #else
+//         _threshold(grey, thresh, currScale, params->adaptiveThreshConstant);
+// #endif
 
-        // detect rectangles
-        _findMarkerContours(thresh, candidatesArrays[i], contoursArrays[i],
-                                params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
-                                params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
-                                params->minDistanceToBorder);
-    }
+//         // detect rectangles
+//         _findMarkerContours(thresh, candidatesArrays[i], contoursArrays[i],
+//                                 params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
+//                                 params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
+//                                 params->minDistanceToBorder);
+//     }
 
-#elif PARALLEL_FOR_IMPLE == 1
+// #elif PARALLEL_FOR_IMPLE == 1
 
     Mat thresh[3];
 
@@ -710,25 +712,37 @@ for(int i = 0; i < nScales; i++) {
         thresh[i] = Mat(grey.rows, grey.cols, CV_8UC1);
     }
 
-        // clock_t time_used;
-	    // clock_t start = clock();
+        clock_t time_used;
+	    clock_t start = clock();
 
     _cudaThreshold_n(grey, thresh, params);
 
-        // time_used = clock() - start;
-        // double time_in_ms = static_cast<double>(time_used) / CLOCKS_PER_SEC * 1000.0;
-        // printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms);
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // parallel_for_(Range(0, nScales), [&](const Range& range) {
+    //     const int begin = range.start;
+    //     const int end = range.end;
 
-        // clock_t time_used2;
-	    // clock_t start2 = clock();
+    //     for (int i = begin; i < end; i++) {
+    //         int currScale = params->adaptiveThreshWinSizeMin + i * params->adaptiveThreshWinSizeStep;
+    //         // threshold
+    //         // Mat thresh;
+    //         _threshold(grey, thresh[i], currScale, params->adaptiveThreshConstant);
 
-    // for(int i = 0; i < nScales; i++) {
-    //     // detect rectangles
-    //     _findMarkerContours(thresh[i], candidatesArrays[i], contoursArrays[i],
-    //                             params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
-    //                             params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
-    //                             params->minDistanceToBorder);
-    // }
+    //         // // detect rectangles
+    //         // _findMarkerContours(thresh, candidatesArrays[i], contoursArrays[i],
+    //         //                     params->minMarkerPerimeterRate, params->maxMarkerPerimeterRate,
+    //         //                     params->polygonalApproxAccuracyRate, params->minCornerDistanceRate,
+    //         //                     params->minDistanceToBorder);
+    //     }
+    // });
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        time_used = clock() - start;
+        double time_in_ms = static_cast<double>(time_used) / CLOCKS_PER_SEC * 1000.0;
+        printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms);
+
+        clock_t time_used2;
+	    clock_t start2 = clock();
 
     cv::parallel_for_(cv::Range(0, nScales), [&](const cv::Range& range) {
         for (int i = range.start; i < range.end; i++) {
@@ -736,16 +750,16 @@ for(int i = 0; i < nScales; i++) {
         }
     });
 
-        // time_used2 = clock() - start2;
-        // double time_in_ms2 = static_cast<double>(time_used2) / CLOCKS_PER_SEC * 1000.0;
-        // printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms2);
+        time_used2 = clock() - start2;
+        double time_in_ms2 = static_cast<double>(time_used2) / CLOCKS_PER_SEC * 1000.0;
+        printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms2);
 
-#elif PARALLEL_FOR_IMPLE == 2
-    // this is the parallel call for the previous commented loop (result is equivalent)
-    parallel_for_(Range(0, nScales), DetectInitialCandidatesParallel(&grey, &candidatesArrays,
-                                                                     &contoursArrays, params));
+// #elif PARALLEL_FOR_IMPLE == 2
+//     // this is the parallel call for the previous commented loop (result is equivalent)
+//     parallel_for_(Range(0, nScales), DetectInitialCandidatesParallel(&grey, &candidatesArrays,
+//                                                                      &contoursArrays, params));
 
-#endif
+// #endif
 
 
     // //cuda threshold time used
