@@ -138,8 +138,8 @@ using namespace std;
 using namespace cv;
 // using namespace cv::aruco;
 
-unsigned char* ld_src;
-unsigned char* ld_dst;
+unsigned char* d_src;
+unsigned char* d_dst;
 
 Aruco::Aruco() {
     // Constructor implementation
@@ -154,19 +154,13 @@ void Aruco::initCuda() {
     }
 }
 
-void Aruco::codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize_src, size_t dataSize_dst){
+void Aruco::codaMalloc_space_for_image(size_t dataSize_src, size_t dataSize_dst){
     cu_aruco::CudaProcessor cudaProcessor;
 
-    // unsigned char* d_src;  // Device memory for _src
-    // unsigned char* d_dst;
-
     cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize_src, dataSize_dst);
-
-    ld_src = d_src;
-    ld_dst = d_dst;
 }
 
-void Aruco::free_up_VRAM(unsigned char* d_src, unsigned char* d_dst){
+void Aruco::free_up_VRAM(){
     cu_aruco::CudaProcessor cudaProcessor;
 
     cudaProcessor.free_up_VRAM(d_src, d_dst);
@@ -547,11 +541,11 @@ static void _cudaThreshold_n(InputArray _in, Mat _out[], const Ptr<DetectorParam
         winSize[i] = params->adaptiveThreshWinSizeMin + (i) * params->adaptiveThreshWinSizeStep;
     }
     
-    cudaProcessor.cuda_threshold_n(ld_src, ld_dst, rows, cols, step, winSize, nScales, params->adaptiveThreshConstant);
+    cudaProcessor.cuda_threshold_n(d_src, d_dst, rows, cols, step, winSize, nScales, params->adaptiveThreshConstant);
 
 
     for(int i = 0;i < nScales;i++){
-        cudaProcessor.download_image_from_VRAM(_out[i].data, ld_dst + i * dataSize, dataSize);
+        cudaProcessor.download_image_from_VRAM(_out[i].data, d_dst + i * dataSize, dataSize);
     }
     
 #if SHOW_DEBUG_WINDOW 
@@ -617,7 +611,7 @@ static void _detectInitialCandidates(const Mat &grey, vector< vector< Point2f > 
     unsigned char* threshData = new unsigned char[dataSize];
     // update_image_to_VRAM_thread(grey.data, threshData, ld_src, ld_dst, dataSize);
     cu_aruco::CudaProcessor cudaProcessor;
-    cudaProcessor.update_image_to_VRAM(grey.data, threshData, ld_src, ld_dst, dataSize);
+    cudaProcessor.update_image_to_VRAM(grey.data, threshData, d_src, d_dst, dataSize);
 
 // #if PARALLEL_FOR_IMPLE == 0
 
@@ -1400,8 +1394,7 @@ static void _apriltag(Mat im_orig, const Ptr<DetectorParameters> & _params, std:
   */
 void Aruco::detectMarkers(InputArray _image, const Ptr<Dictionary> &_dictionary, OutputArrayOfArrays _corners,
                    OutputArray _ids, const Ptr<DetectorParameters> &_params,
-                   OutputArrayOfArrays _rejectedImgPoints,
-                   unsigned char* d_src, unsigned char* d_dst) {
+                   OutputArrayOfArrays _rejectedImgPoints) {
 
     CV_Assert(!_image.empty());
 

@@ -24,14 +24,13 @@ public:
     Aruco(); // Constructor declaration
     void initCuda(); // Member function declaration
 
-    void codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize_src, size_t dataSize_dst);
+    void codaMalloc_space_for_image(size_t dataSize_src, size_t dataSize_dst);
 
-    void free_up_VRAM(unsigned char* d_src, unsigned char* d_dst);
+    void free_up_VRAM();
 
     void detectMarkers(InputArray _image, const Ptr<cv::aruco::Dictionary> &_dictionary, OutputArrayOfArrays _corners,
                    OutputArray _ids, const Ptr<cv::aruco::DetectorParameters> &_params,
-                   OutputArrayOfArrays _rejectedImgPoints,
-                   unsigned char* d_src, unsigned char* d_dst);
+                   OutputArrayOfArrays _rejectedImgPoints);
 
 };
 

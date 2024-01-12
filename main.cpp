@@ -86,11 +86,11 @@ int main() {
     cv::namedWindow("Camera Feed", cv::WINDOW_NORMAL);
 
     //malloc VRAM here
-    unsigned char* d_src;  // Device memory for _src
-    unsigned char* d_dst;  // Device memory for _dst
+    // unsigned char* d_src;  // Device memory for _src
+    // unsigned char* d_dst;  // Device memory for _dst
     size_t dataSize = frame.cols * frame.rows * sizeof(unsigned char);
 
-    aruco.codaMalloc_space_for_image(d_src, d_dst, dataSize, dataSize * 3);
+    aruco.codaMalloc_space_for_image(dataSize, dataSize * 3);
 
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners;
@@ -118,7 +118,7 @@ int main() {
 	    clock_t start = clock();
 #endif
 
-        aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray(), d_src, d_dst);
+        aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
         // cv::aruco::detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
 
 #if CAL_TIME_CONSUME
@@ -146,7 +146,7 @@ int main() {
 #endif
 
     //free up VRAM
-    aruco.free_up_VRAM(d_src, d_dst);
+    aruco.free_up_VRAM();
 
     cv::destroyAllWindows();
 
