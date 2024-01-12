@@ -83,8 +83,6 @@ __global__ void calculateMeanRows(const unsigned char* _src, int* _mean, int row
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // int blockSizes[3] = {13, 23, 33};
-
     if (i < rows && j < cols) {
         int sum = 0;
         int count = 0;
@@ -107,8 +105,6 @@ __global__ void calculateMeanRows(const unsigned char* _src, int* _mean, int row
 __global__ void calculateMeanCols(const int* _meanRows, int* _mean, int rows, int cols, int blockSizes[], int numBlockSizes) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // int blockSizes[3] = {13, 23, 33};
 
     if (i < rows && j < cols) {
         int sum = 0;
@@ -142,12 +138,12 @@ __global__ void calculateMeanCols(const int* _meanRows, int* _mean, int rows, in
 //     }
 // }
 
-__global__ void applyThreshold_n(const unsigned char* _src, unsigned char* _dst, int* _mean, int rows, int cols, double c) {
+__global__ void applyThreshold_n(const unsigned char* _src, unsigned char* _dst, int* _mean, int rows, int cols, double c, int nScales) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (i < rows && j < cols) {
-        for (int k = 0; k < 3; ++k) {
+        for (int k = 0; k < nScales; ++k) {
             int threshold = _mean[(i * cols + j) + k * rows * cols] - c;
             _dst[k * rows * cols + i * cols + j] = (_src[i * cols + j] >= threshold) ? 0 : 255;
         }
@@ -198,7 +194,7 @@ void CudaProcessor::cuda_threshold_n(const unsigned char* d_src, unsigned char* 
     calculateMeanRows<<<blocks, threads>>>(d_src, d_meanRows, rows, cols, winSizeDevice, nScales);
     calculateMeanCols<<<blocks, threads>>>(d_meanRows, d_mean, rows, cols, winSizeDevice, nScales);
 
-    applyThreshold_n<<<blocks, threads>>>(d_src, d_dst, d_mean, rows, cols, constant);
+    applyThreshold_n<<<blocks, threads>>>(d_src, d_dst, d_mean, rows, cols, constant, nScales);
 
     cudaDeviceSynchronize(); // Wait for all kernels to finish
 

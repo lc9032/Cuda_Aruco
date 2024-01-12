@@ -6,11 +6,8 @@
 #include <opencv2/calib3d.hpp>
 #include <vector>
 
-// #define CUDA_IMPLE 1 //0:OPENCV : 1:CUDA (for testing, will be removed)
-#define SHOW_DEBUG_WINDOW 0 //0:OFF ; 1:ON
-// #define SHOW_DEBUG_MSG 0 //0:OFF ; 1:ON
-// #define CPU_GPU_SWITCH 1 //0: CPU ; 1: GPU (for testing, will be removed)
-// #define PARALLEL_FOR_IMPLE 1//0: _cudaThreshold, 1: _cudaThreshold_n, 2: Parallel (for testing, will be removed)
+#define CUDA_IMPLE 1 //0:OPENCV : 1:CUDA
+#define SHOW_DEBUG_WINDOW 1 //0:OFF ; 1:ON
 
 #define OPENCV_VER 0 //1: for Jetson
 

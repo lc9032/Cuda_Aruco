@@ -85,17 +85,15 @@ int main() {
 
     cv::namedWindow("Camera Feed", cv::WINDOW_NORMAL);
 
-    //malloc VRAM here
-    // unsigned char* d_src;  // Device memory for _src
-    // unsigned char* d_dst;  // Device memory for _dst
-    size_t dataSize = frame.cols * frame.rows * sizeof(unsigned char);
-
-    aruco.codaMalloc_space_for_image(dataSize, dataSize * 3);
-
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners;
     cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_50);
+
+    //malloc VRAM here
+    size_t dataSize = frame.cols * frame.rows * sizeof(unsigned char);
+    int nScales = (parameters->adaptiveThreshWinSizeMax - parameters->adaptiveThreshWinSizeMin) / parameters->adaptiveThreshWinSizeStep + 1;
+    aruco.codaMalloc_space_for_image(dataSize, dataSize * nScales);
 
 #if CAPTURE_FRAME == 1 || CAPTURE_FRAME == 2
     while(true) {
