@@ -11,7 +11,7 @@ public:
 
     bool InitCUDA();
 
-    void codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize);
+    void codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize_src, size_t dataSize_dst);
 
     void update_image_to_VRAM(unsigned char* _src, unsigned char* _dst, unsigned char* d_src, unsigned char* d_dst, size_t dataSize);
 
@@ -21,7 +21,7 @@ public:
 
     void cuda_threshold(const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step, int winSize, double constant);
 
-    void cuda_threshold_n(const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step, int winSize, double constant, int nScale);
+    void cuda_threshold_n(const unsigned char* _src, unsigned char* _dst, int rows, int cols, int step, int* winSize, int nScales, double constant);
 };
 
 } // namespace cu_aruco

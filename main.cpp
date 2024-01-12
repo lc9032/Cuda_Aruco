@@ -90,7 +90,7 @@ int main() {
     unsigned char* d_dst;  // Device memory for _dst
     size_t dataSize = frame.cols * frame.rows * sizeof(unsigned char);
 
-    aruco.codaMalloc_space_for_image(d_src, d_dst, dataSize);
+    aruco.codaMalloc_space_for_image(d_src, d_dst, dataSize, dataSize * 3);
 
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners;
@@ -119,7 +119,6 @@ int main() {
 #endif
 
         aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray(), d_src, d_dst);
-        // aruco.detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray(), imageData);
         // cv::aruco::detectMarkers(frame, dictionary, markerCorners, markerIds, parameters, cv::noArray());
 
 #if CAL_TIME_CONSUME

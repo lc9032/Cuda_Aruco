@@ -18,17 +18,13 @@ namespace aruco {
 
 using namespace cv;
 
-struct ImageData {
-    unsigned char* ld_src;
-    unsigned char* ld_dst;
-};
 
 class Aruco {
 public:
     Aruco(); // Constructor declaration
     void initCuda(); // Member function declaration
 
-    void codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize);
+    void codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize_src, size_t dataSize_dst);
 
     void free_up_VRAM(unsigned char* d_src, unsigned char* d_dst);
 

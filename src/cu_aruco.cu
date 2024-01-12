@@ -47,50 +47,6 @@ bool CudaProcessor::InitCUDA()
 //     int i = blockIdx.x * blockDim.x + threadIdx.x;
 //     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-//     // Shared memory for the block
-//     __shared__ int sharedBlock[32][32];  // Assuming maximum block size is 32x32
-
-//     if (i < rows && j < cols) {
-
-//         int local_i = threadIdx.x;
-//         int local_j = threadIdx.y;
-
-//         int sum = 0;
-//         int count = 0;
-
-//         // Load data into shared memory
-//         sharedBlock[local_i][local_j] = _src[i * cols + j];
-//         __syncthreads();
-
-//         // Calculate local mean within the specified block size
-//         for (int x = -blockSize / 2; x <= blockSize / 2; x++) {
-//             for (int y = -blockSize / 2; y <= blockSize / 2; y++) {
-//                 int row = local_i + x;
-//                 int col = local_j + y;
-
-//                 // Ensure the pixel is within bounds
-//                 if (row >= 0 && row < blockDim.x && col >= 0 && col < blockDim.y) {
-//                     sum += sharedBlock[row][col];
-//                     count++;
-//                 }
-//             }
-//         }
-
-//         int localMean = sum / count;
-//         int threshold = localMean - constant;
-
-//         // Apply thresholding
-//         _dst[i * cols + j] = (_src[i * cols + j] >= threshold) ? 0 : 255;
-
-//     }
-// }
-
-// __global__ void threshold_kernel(const unsigned char* _src, unsigned char* _dst,
-//                                  int rows, int cols, int blockSize, double constant) {
-
-//     int i = blockIdx.x * blockDim.x + threadIdx.x;
-//     int j = blockIdx.y * blockDim.y + threadIdx.y;
-
 //     if (i < rows && j < cols) {
 
 //         int sum = 0;
@@ -119,20 +75,21 @@ bool CudaProcessor::InitCUDA()
 //         } else {
 //             _dst[i * cols + j] = 255; // Background
 //         }
+//         _dst[i * cols + j] = (_src[i * cols + j] >= threshold) ? 0 : 255;
 //     }
 // }
 
-__global__ void calculateMeanRows(const unsigned char* _src, int* _mean, int rows, int cols, int blockSize) {
+__global__ void calculateMeanRows(const unsigned char* _src, int* _mean, int rows, int cols, int blockSizes[], int numBlockSizes) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-    int blockSizes[3] = {13, 23, 33};
+    // int blockSizes[3] = {13, 23, 33};
 
     if (i < rows && j < cols) {
         int sum = 0;
         int count = 0;
 
-        for (int bS = 0; bS < 3; bS++) {
+        for (int bS = 0; bS < numBlockSizes; bS++) {
             for (int x = -blockSizes[bS] / 2; x <= blockSizes[bS] / 2; x++) {
                 int col = j + x;
 
@@ -147,17 +104,17 @@ __global__ void calculateMeanRows(const unsigned char* _src, int* _mean, int row
     }
 }
 
-__global__ void calculateMeanCols(const int* _meanRows, int* _mean, int rows, int cols, int blockSize) {
+__global__ void calculateMeanCols(const int* _meanRows, int* _mean, int rows, int cols, int blockSizes[], int numBlockSizes) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-    int blockSizes[3] = {13, 23, 33};
+    // int blockSizes[3] = {13, 23, 33};
 
     if (i < rows && j < cols) {
         int sum = 0;
         int count = 0;
         
-        for (int bS = 0; bS < 3; bS++) {
+        for (int bS = 0; bS < numBlockSizes; bS++) {
             for (int y = -blockSizes[bS] / 2; y <= blockSizes[bS] / 2; y++) {
                 int row = i + y;
 
@@ -185,7 +142,6 @@ __global__ void calculateMeanCols(const int* _meanRows, int* _mean, int rows, in
 //     }
 // }
 
-
 __global__ void applyThreshold_n(const unsigned char* _src, unsigned char* _dst, int* _mean, int rows, int cols, double c) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -198,10 +154,9 @@ __global__ void applyThreshold_n(const unsigned char* _src, unsigned char* _dst,
     }
 } 
 
-void CudaProcessor::codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize){
-    cudaMalloc((void**)&d_src, dataSize);
-    // cudaMalloc((void**)&d_dst, dataSize);
-    cudaMalloc((void**)&d_dst, dataSize*3);//for testinggggggggggggggggggggggg!!!
+void CudaProcessor::codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize_src, size_t dataSize_dst){
+    cudaMalloc((void**)&d_src, dataSize_src);
+    cudaMalloc((void**)&d_dst, dataSize_dst);
 }
 
 void CudaProcessor::update_image_to_VRAM(unsigned char* _src, unsigned char* _dst, unsigned char* d_src, unsigned char* d_dst, size_t dataSize){
@@ -221,23 +176,27 @@ void CudaProcessor::free_up_VRAM(unsigned char* d_src, unsigned char* d_dst){
 
 static int iDivUp(int a, int b) { return (a%b != 0) ? (a/b + 1) : (a/b); }
 
-void CudaProcessor::cuda_threshold_n(const unsigned char* d_src, unsigned char* d_dst, int rows, int cols, int step, int winSize, double constant, int nScale) {
-    // printf("cuda_threshold_GPU_n %d\n", winSize);
+void CudaProcessor::cuda_threshold_n(const unsigned char* d_src, unsigned char* d_dst, int rows, int cols, int step, int* winSize, int nScales, double constant) {
+    // printf("cuda_threshold_GPU_n\n");
 
 	dim3 blocks(iDivUp(rows, 16), iDivUp(cols, 16));
 	dim3 threads(16, 16);
 
-    // // Calculate the addresses for d_dst1, d_dst2, and d_dst3
-    size_t dataSize = cols * rows * sizeof(unsigned char);
-
     int* d_mean;
     int* d_meanRows;
-    size_t meanSize = rows * cols * sizeof(int);//TODO
-    cudaMalloc((void**)&d_meanRows, meanSize * 3);
-    cudaMalloc((void**)&d_mean, meanSize * 3);
+    size_t meanSize = rows * cols * sizeof(int);
+    int* winSizeDevice;
 
-    calculateMeanRows<<<blocks, threads>>>(d_src, d_meanRows, rows, cols, winSize);
-    calculateMeanCols<<<blocks, threads>>>(d_meanRows, d_mean, rows, cols, winSize);
+
+    cudaMalloc((void**)&winSizeDevice, sizeof(int) * nScales);
+    cudaMemcpy(winSizeDevice, winSize, sizeof(int) * nScales, cudaMemcpyHostToDevice);
+
+    cudaMalloc((void**)&d_meanRows, meanSize * nScales);
+    cudaMalloc((void**)&d_mean, meanSize * nScales);
+
+
+    calculateMeanRows<<<blocks, threads>>>(d_src, d_meanRows, rows, cols, winSizeDevice, nScales);
+    calculateMeanCols<<<blocks, threads>>>(d_meanRows, d_mean, rows, cols, winSizeDevice, nScales);
 
     applyThreshold_n<<<blocks, threads>>>(d_src, d_dst, d_mean, rows, cols, constant);
 
@@ -245,9 +204,7 @@ void CudaProcessor::cuda_threshold_n(const unsigned char* d_src, unsigned char* 
 
     cudaFree(d_mean);
     cudaFree(d_meanRows);
+    cudaFree(winSizeDevice);
 }
-
-    
-
 
 } // namespace cu_aruco

@@ -154,10 +154,16 @@ void Aruco::initCuda() {
     }
 }
 
-void Aruco::codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize){
+void Aruco::codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize_src, size_t dataSize_dst){
     cu_aruco::CudaProcessor cudaProcessor;
 
-    cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize);
+    // unsigned char* d_src;  // Device memory for _src
+    // unsigned char* d_dst;
+
+    cudaProcessor.codaMalloc_space_for_image(d_src, d_dst,dataSize_src, dataSize_dst);
+
+    ld_src = d_src;
+    ld_dst = d_dst;
 }
 
 void Aruco::free_up_VRAM(unsigned char* d_src, unsigned char* d_dst){
@@ -532,13 +538,21 @@ static void _cudaThreshold_n(InputArray _in, Mat _out[], const Ptr<DetectorParam
     size_t dataSize = rows * cols * sizeof(unsigned char);
     cv::Mat thresh(rows, cols, CV_8UC1);
 
-    int winSize = params->adaptiveThreshWinSizeMin + 1*params->adaptiveThreshWinSizeStep;//TODO!!!!!!!!!!!!!!!!!!
-    double constant = params->adaptiveThreshConstant;//TODO!!!!!!!!!!!!!!
+    int nScales =  (params->adaptiveThreshWinSizeMax - params->adaptiveThreshWinSizeMin) /
+                      params->adaptiveThreshWinSizeStep + 1;
 
-    cudaProcessor.cuda_threshold_n(ld_src, ld_dst, rows, cols, step, winSize, constant, 3);//todo:!!!!!!!!!!!!
-    cudaProcessor.download_image_from_VRAM(_out[0].data, ld_dst, dataSize);
-    cudaProcessor.download_image_from_VRAM(_out[1].data, ld_dst + dataSize, dataSize);
-    cudaProcessor.download_image_from_VRAM(_out[2].data, ld_dst + 2 * dataSize, dataSize);
+
+    int* winSize = new int[nScales];
+    for (int i = 0; i < nScales; i++) {
+        winSize[i] = params->adaptiveThreshWinSizeMin + (i) * params->adaptiveThreshWinSizeStep;
+    }
+    
+    cudaProcessor.cuda_threshold_n(ld_src, ld_dst, rows, cols, step, winSize, nScales, params->adaptiveThreshConstant);
+
+
+    for(int i = 0;i < nScales;i++){
+        cudaProcessor.download_image_from_VRAM(_out[i].data, ld_dst + i * dataSize, dataSize);
+    }
     
 #if SHOW_DEBUG_WINDOW 
     // cv::imshow("Camera Feed", thresh);
@@ -551,6 +565,7 @@ static void _cudaThreshold_n(InputArray _in, Mat _out[], const Ptr<DetectorParam
     cv::imshow("Camera Feed", _out[2]);
     cv::waitKey(0);
 #endif // SHOW_DEBUG_WINDOW
+    delete[] winSize;
 }
 
 void processScale(const cv::Mat& thresh, std::vector<std::vector<cv::Point2f>>& candidates, std::vector<std::vector<cv::Point>>& contours, const Ptr<DetectorParameters> &params) {
@@ -626,9 +641,11 @@ static void _detectInitialCandidates(const Mat &grey, vector< vector< Point2f > 
 
 // #elif PARALLEL_FOR_IMPLE == 1
 
+
+    // printf("nScales = %d", nScales);
     Mat thresh[3];
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < nScales; i++) {
         thresh[i] = Mat(grey.rows, grey.cols, CV_8UC1);
     }
 
@@ -766,7 +783,7 @@ static Mat _extractBits(InputArray _image, InputArray _corners, int markerSize,
                           .rowRange(cellSize / 2, resultImg.rows - cellSize / 2);
     meanStdDev(innerRegion, mean, stddev);
     if(stddev.ptr< double >(0)[0] < minStdDevOtsu) {
-        // all black or all white, depending on mean value
+        // all black or all white, depending on mean value 
         if(mean.ptr< double >(0)[0] > 127)
             bits.setTo(1);
         else
@@ -1391,8 +1408,8 @@ void Aruco::detectMarkers(InputArray _image, const Ptr<Dictionary> &_dictionary,
     Mat grey;
     _convertToGrey(_image.getMat(), grey);
 
-    ld_src = d_src;
-    ld_dst = d_dst;
+    // ld_src = d_src;
+    // ld_dst = d_dst;
 
     // cu_aruco::CudaProcessor cudaProcessor;
     // cudaProcessor.cuda_threshold();
