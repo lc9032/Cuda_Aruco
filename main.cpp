@@ -12,19 +12,6 @@
 
 using namespace std;
 
-
-/////////////////////////////////
-// void test1(void)
-// {
-//   for(int x=0; x<5000; x++);
-// }
-
-// void test2(void)
-// {
-//   for(int x=0; x<50000; x++);
-// }
-/////////////////////////////////
-
 #if CAPTURE_FRAME == 2
 static cv::VideoCapture create_capture(int width, int height, int fps) {
     std::stringstream pipeline_str;
@@ -147,16 +134,6 @@ int main() {
     aruco.free_up_VRAM();
 
     cv::destroyAllWindows();
-
-    /////////////////////////////////
-    // cnt=10000;
-    // printf("hello\n");
-    // while(cnt--){
-    //     test1();
-
-    //     test2();
-    // }
-    /////////////////////////////////
 
     return 0;
 }

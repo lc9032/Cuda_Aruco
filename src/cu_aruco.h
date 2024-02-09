@@ -12,8 +12,8 @@ public:
     bool InitCUDA();
 
     void codaMalloc_space_for_image(unsigned char*& d_src, unsigned char*& d_dst, size_t dataSize_src, size_t dataSize_dst);
-
-    void update_image_to_VRAM(unsigned char* _src, unsigned char* _dst, unsigned char* d_src, unsigned char* d_dst, size_t dataSize);
+    
+    void update_image_to_VRAM(unsigned char* _src, unsigned char* d_src, size_t dataSize);
 
     void download_image_from_VRAM(unsigned char* _dst, unsigned char* d_dst, size_t dataSize);
 

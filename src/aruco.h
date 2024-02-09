@@ -7,9 +7,7 @@
 #include <vector>
 
 #define CUDA_IMPLE 1 //0:OPENCV : 1:CUDA
-#define SHOW_DEBUG_WINDOW 1 //0:OFF ; 1:ON
-
-#define OPENCV_VER 0 //1: for Jetson
+#define SHOW_DEBUG_WINDOW 0 //0:OFF ; 1:ON
 
 namespace aruco {
 

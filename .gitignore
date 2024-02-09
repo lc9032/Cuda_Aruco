@@ -2,6 +2,7 @@
 CMakeCache.txt
 cmake_install.cmake
 main
+test_aruco
 Makefile
 src/CMakeCache.txt
 src/cmake_install.cmake

@@ -70,7 +70,7 @@ static inline bool readParameter(const cv::FileNode& node, T& parameter)
   * @brief Read a new set of DetectorParameters from FileStorage.
   */
 
-#if OPENCV_VER == 0
+#if CV_MAJOR_VERSION == 3
 bool cv::aruco::DetectorParameters::readDetectorParameters(const cv::FileNode& fn)
 {
     if(fn.empty())
@@ -601,36 +601,16 @@ static void _detectInitialCandidates(const Mat &grey, vector< vector< Point2f > 
 
     //Copy the image to the VRAM!!!!!
     size_t dataSize = grey.rows * grey.cols * sizeof(unsigned char);
-    unsigned char* threshData = new unsigned char[dataSize];
-    cudaProcessor.update_image_to_VRAM(grey.data, threshData, d_src, d_dst, dataSize);
-
+    // unsigned char* threshData = new unsigned char[dataSize];
+    // cudaProcessor.update_image_to_VRAM(grey.data, threshData, d_src, d_dst, dataSize);
+    cudaProcessor.update_image_to_VRAM(grey.data, d_src, dataSize);
 
     Mat thresh[nScales];
     for (int i = 0; i < nScales; i++) {
         thresh[i] = Mat(grey.rows, grey.cols, CV_8UC1);
     }
 
-    // clock_t time_used;
-	// clock_t start = clock();
-
     _cudaThreshold_n(grey, &thresh[0], params);
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // parallel_for_(Range(0, nScales), [&](const Range& range) {
-    //     const int begin = range.start;
-    //     const int end = range.end;
-
-    //     for (int i = begin; i < end; i++) {
-    //         _threshold(grey, thresh[i], currScale, params->adaptiveThreshConstant);
-    //     }
-    // });
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // time_used = clock() - start;
-    // double time_in_ms = static_cast<double>(time_used) / CLOCKS_PER_SEC * 1000.0;
-    // printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms);
-
-    // start = clock();
 
     cv::parallel_for_(cv::Range(0, nScales), [&](const cv::Range& range) {
         for (int i = range.start; i < range.end; i++) {
@@ -641,10 +621,8 @@ static void _detectInitialCandidates(const Mat &grey, vector< vector< Point2f > 
         }
     });
 
-    // time_used = clock() - start;
-    // time_in_ms = static_cast<double>(time_used) / CLOCKS_PER_SEC * 1000.0;
-    // printf("time used(_cudaThreshold_n): %d\n", (int)time_in_ms);
-#endif
+    // delete[] threshData;
+#endif //CUDA_IMPLE
 
     // join candidates
     for(int i = 0; i < nScales; i++) {
@@ -987,7 +965,7 @@ static void _identifyCandidates(InputArray _image, vector< vector< vector< Point
   * @brief Return object points for the system centered in a middle (by default) or in a top left corner of single
   * marker, given the marker length
   */
-#if OPENCV_VER == 0
+#if CV_MAJOR_VERSION == 3
 static void _getSingleMarkerObjectPoints(float markerLength, OutputArray _objPoints,
                                          EstimateParameters estimateParameters) {
 

@@ -155,9 +155,8 @@ void CudaProcessor::codaMalloc_space_for_image(unsigned char*& d_src, unsigned c
     cudaMalloc((void**)&d_dst, dataSize_dst);
 }
 
-void CudaProcessor::update_image_to_VRAM(unsigned char* _src, unsigned char* _dst, unsigned char* d_src, unsigned char* d_dst, size_t dataSize){
+void CudaProcessor::update_image_to_VRAM(unsigned char* _src, unsigned char* d_src, size_t dataSize){
     cudaMemcpy(d_src, _src, dataSize, cudaMemcpyHostToDevice);
-    // cudaMemcpy(d_dst, _dst, dataSize, cudaMemcpyHostToDevice);
 }
 
 void CudaProcessor::download_image_from_VRAM(unsigned char* _dst, unsigned char* d_dst, size_t dataSize){

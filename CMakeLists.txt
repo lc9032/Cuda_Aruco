@@ -19,7 +19,11 @@ add_subdirectory(src)
 
 add_executable(main main.cpp)
 
+add_executable(test_aruco test_aruco.cpp)
+
 target_link_libraries(main aruco ${OpenCV_LIBS})
+
+target_link_libraries(test_aruco aruco ${OpenCV_LIBS})
 
 
 
