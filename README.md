@@ -22,11 +22,11 @@ To build the project, follow these steps:
 
   - Clone the repository:
 
-        git clone https://github.com/your-username/your-repo.git
+        git clone https://github.com/lc9032/Cuda_Aruco.git
 
   - Navigate to the project directory:
 
-        cd your-repo
+        cd Cuda_Aruco
 
   - Compile the project:
 
