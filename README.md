@@ -13,8 +13,8 @@ The goal is to accelerate the detection process, especially for large images, by
 ## Usage
 ### Prerequisites
 
-  - OpenCV library installed (version X.X.X).
-  - Nvidia CUDA Toolkit installed (version X.X).
+  - OpenCV library installed (version 3.4.20).
+  - Nvidia CUDA Toolkit installed (version 11.8).
 
 ### Building
 
